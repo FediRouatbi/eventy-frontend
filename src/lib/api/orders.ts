@@ -140,6 +140,19 @@ export async function getCheckoutOrderByStripeSession(stripeSessionID: string) {
   );
 }
 
+export async function listMyCheckoutOrders(accessToken: string, limit = 20) {
+  const response = await fetch(
+    `${API_BASE_URL}/v1/orders?limit=${encodeURIComponent(String(limit))}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  return parseApiResponse<CheckoutOrderSummary[]>(response, "Failed to load orders");
+}
+
 export function checkoutOrderByStripeSessionQueryOptions(stripeSessionID: string) {
   return queryOptions({
     queryKey: ["public", "stripe-sessions", stripeSessionID, "checkout-order"],

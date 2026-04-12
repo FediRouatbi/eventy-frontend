@@ -189,6 +189,8 @@ function AdminEventsPage() {
     queryKey: ["admin-events", session?.access_token],
     enabled: Boolean(session?.access_token),
     queryFn: () => listAdminEvents(session!.access_token),
+    refetchInterval: 5000,
+    refetchOnWindowFocus: true,
   });
   const {
     data: categories = [],
@@ -198,11 +200,15 @@ function AdminEventsPage() {
     queryKey: ["admin-categories", session?.access_token],
     enabled: Boolean(session?.access_token),
     queryFn: () => listAdminCategories(session!.access_token),
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
   });
   const { data: organizers = [] } = useQuery({
     queryKey: ["admin-organizers", session?.access_token],
     enabled: Boolean(session?.access_token && isSuperAdmin),
     queryFn: () => listAdminOrganizers(session!.access_token),
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
   });
   const isLoading = isEventsLoading || isCategoriesLoading;
   const loadError = [eventsError, categoriesError].find(Boolean);

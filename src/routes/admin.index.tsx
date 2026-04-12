@@ -102,6 +102,8 @@ function AdminOverviewPage() {
     queryKey: ['admin-overview', session?.access_token],
     enabled: Boolean(session?.access_token),
     queryFn: () => getAdminOverview(session!.access_token),
+    refetchInterval: 5000,
+    refetchOnWindowFocus: true,
   });
   const loadError =
     error instanceof Error

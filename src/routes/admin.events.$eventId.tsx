@@ -186,6 +186,7 @@ function AdminEventWorkspacePage() {
   const [eventDetail, setEventDetail] = useState<EventDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const hasLoadedRef = useRef(false);
   const [eventSheetOpen, setEventSheetOpen] = useState(false);
   const [sessionSheetOpen, setSessionSheetOpen] = useState(false);
   const [ticketSheetOpen, setTicketSheetOpen] = useState(false);
@@ -244,9 +245,21 @@ function AdminEventWorkspacePage() {
       return;
     }
 
-    async function loadWorkspace() {
-      setIsLoading(true);
-      setLoadError("");
+    let isMounted = true;
+    async function loadWorkspace(isPolling = false) {
+      const isInitialLoad = !hasLoadedRef.current;
+      const shouldBlockUi = isInitialLoad && !isPolling;
+      const allowPolling =
+        !eventSheetOpen && !sessionSheetOpen && !ticketSheetOpen;
+
+      if (isPolling && !allowPolling) {
+        return;
+      }
+
+      if (shouldBlockUi) {
+        setIsLoading(true);
+        setLoadError("");
+      }
 
       try {
         const [categoryData, eventData] = await Promise.all([
@@ -254,21 +267,61 @@ function AdminEventWorkspacePage() {
           getAdminEventById(session.access_token, eventId),
         ]);
 
+        if (!isMounted) {
+          return;
+        }
+
+        hasLoadedRef.current = true;
         setCategories(categoryData);
         setEventDetail(eventData);
       } catch (error) {
-        setLoadError(
-          error instanceof Error
-            ? error.message
-            : "Failed to load event workspace",
-        );
+        if (!isMounted) {
+          return;
+        }
+
+        if (!isPolling && !hasLoadedRef.current) {
+          setLoadError(
+            error instanceof Error
+              ? error.message
+              : "Failed to load event workspace",
+          );
+        }
       } finally {
-        setIsLoading(false);
+        if (!isMounted) {
+          return;
+        }
+
+        if (shouldBlockUi) {
+          setIsLoading(false);
+        }
       }
     }
 
     loadWorkspace();
-  }, [eventId, navigate, session]);
+
+    const poll = window.setInterval(() => {
+      void loadWorkspace(true);
+    }, 5000);
+
+    const handleFocus = () => {
+      void loadWorkspace(true);
+    };
+
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(poll);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [
+    eventId,
+    eventSheetOpen,
+    navigate,
+    session,
+    sessionSheetOpen,
+    ticketSheetOpen,
+  ]);
 
   const currentCategory = useMemo(
     () => categories.find((item) => item.id === eventDetail?.category_id),

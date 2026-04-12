@@ -4,6 +4,7 @@ import {
   Building2,
   CalendarRange,
   Command,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   MoveRight,
@@ -193,6 +194,17 @@ export function AdminAppShell({ session }: { session: AuthSession }) {
               </div>
 
               <Separator className="my-3" />
+
+              <Button
+                asChild
+                variant="outline"
+                className="w-full justify-start rounded-xl mb-2"
+              >
+                <Link to="/admin/reset-password">
+                  <KeyRound className="size-4" />
+                  Change password
+                </Link>
+              </Button>
 
               <Button
                 variant="outline"

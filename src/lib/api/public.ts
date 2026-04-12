@@ -3,6 +3,9 @@ import { queryOptions } from "@tanstack/react-query";
 import { API_BASE_URL, apiClient } from "./client";
 import type { components } from "./generated/schema";
 
+const LIVE_REFETCH_INTERVAL_MS = 10_000;
+const LIVE_DETAIL_REFETCH_INTERVAL_MS = 5_000;
+
 export type ApiCategory = components["schemas"]["Category"];
 export type ApiEvent = components["schemas"]["Event"];
 export type ApiPublicEvent = components["schemas"]["PublicEvent"];
@@ -47,6 +50,15 @@ export async function listCategories() {
   }
 
   return data ?? [];
+}
+
+export function categoriesQueryOptions() {
+  return queryOptions({
+    queryKey: ["public", "categories"],
+    queryFn: listCategories,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
+  });
 }
 
 export async function listEvents() {
@@ -115,6 +127,8 @@ export function publicEventsQueryOptions() {
   return queryOptions({
     queryKey: ["public", "events"],
     queryFn: listPublicEvents,
+    refetchInterval: LIVE_REFETCH_INTERVAL_MS,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -122,6 +136,8 @@ export function publicEventDetailQueryOptions(eventID: string) {
   return queryOptions({
     queryKey: ["public", "events", eventID],
     queryFn: () => getPublicEventById(eventID),
+    refetchInterval: LIVE_DETAIL_REFETCH_INTERVAL_MS,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -129,5 +145,7 @@ export function publicCategoryDetailQueryOptions(categorySlug: string) {
   return queryOptions({
     queryKey: ["public", "categories", categorySlug],
     queryFn: () => getPublicCategoryBySlug(categorySlug),
+    refetchInterval: LIVE_REFETCH_INTERVAL_MS,
+    refetchOnWindowFocus: true,
   });
 }

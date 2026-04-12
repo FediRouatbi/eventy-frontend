@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, notFound } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "#/components/ui/button";
@@ -14,6 +14,7 @@ import {
   createStripeCheckoutSession,
 } from "#/lib/api/orders";
 import { queryClient } from "#/lib/query-client";
+import { rememberStripeCheckoutSession } from "#/lib/orders-history";
 
 export const Route = createFileRoute("/checkout/success")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -44,10 +45,38 @@ function CheckoutSuccessPage() {
   );
   const [isStartingPayment, setIsStartingPayment] = useState(false);
 
+  useEffect(() => {
+    if (order.status === "paid") {
+      return;
+    }
+
+    const queryKey = [
+      "public",
+      "checkout-orders",
+      orderId,
+      token,
+    ] as const;
+
+    const refetch = () => {
+      void queryClient.refetchQueries({ queryKey, exact: true });
+    };
+
+    refetch();
+
+    const poll = window.setInterval(refetch, 5000);
+    window.addEventListener("focus", refetch);
+
+    return () => {
+      window.clearInterval(poll);
+      window.removeEventListener("focus", refetch);
+    };
+  }, [order.status, orderId, token]);
+
   async function handlePayNow() {
     setIsStartingPayment(true);
     try {
       const session = await createStripeCheckoutSession(orderId, token);
+      rememberStripeCheckoutSession(session.session_id);
       window.location.assign(session.checkout_url);
     } catch (error) {
       toast.error("Unable to start payment", {

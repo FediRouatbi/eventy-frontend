@@ -29,7 +29,7 @@ export const Route = createFileRoute("/account/security")({
     }
 
     if (isAdminRole(session.user.role)) {
-      throw redirect({ to: "/admin/reset-password" });
+      throw redirect({ to: "/admin" });
     }
   },
   component: AccountSecurityPage,

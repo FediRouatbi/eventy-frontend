@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { AlertCircle, LoaderCircle, ShieldCheck } from "lucide-react";
 import { Badge } from "#/components/ui/badge";
@@ -159,9 +159,32 @@ function LoginPage() {
 
           <Separator className="my-6" />
 
-          <div className="text-sm leading-6 text-muted-foreground">
-            This route remains hidden from the public navbar and serves only as
-            the entry point to the admin workspace.
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+            <Link
+              to="/register"
+              search={{ email }}
+              className="text-primary underline-offset-4 hover:underline"
+            >
+              Create account
+            </Link>
+            <Link
+              to="/forgot-password"
+              className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              Forgot password
+            </Link>
+            <Link
+              to="/reset-password"
+              search={{ email }}
+              className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              Have an OTP?
+            </Link>
+          </div>
+
+          <div className="mt-5 text-sm leading-6 text-muted-foreground">
+            This route stays out of the public navigation and serves as the
+            entry point to the admin workspace.
           </div>
         </CardContent>
       </Card>

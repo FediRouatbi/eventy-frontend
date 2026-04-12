@@ -7,12 +7,13 @@ import {
   CircleUserRound,
   KeyRound,
   LogOut,
+  ReceiptText,
   Settings,
   ShieldCheck,
   Ticket,
   Trash2,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { logout } from "#/lib/api/auth";
@@ -29,6 +30,7 @@ import {
 } from "#/features/events/display";
 import {
   getCartSubtotal,
+  clearCart,
   removeCartItem,
   useCart,
   useReservationCountdown,
@@ -41,12 +43,36 @@ import ThemeToggle from "./ThemeToggle";
 export default function Header() {
   const navigate = useNavigate();
   const session = useAuthSession();
+  const isAdminUser = Boolean(session && isAdminRole(session.user.role));
   const cart = useCart();
   const countdown = useReservationCountdown(cart.expires_at);
   const cartItemsCount = cart.items.reduce((sum, item) => sum + item.quantity, 0);
   const cartSubtotal = getCartSubtotal(cart.items);
   const cartCurrency = cart.items[0]?.currency ?? DEFAULT_CURRENCY_CODE;
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const hasShownExpiryToast = useRef(false);
+
+  useEffect(() => {
+    if (cart.items.length === 0) {
+      hasShownExpiryToast.current = false;
+      return;
+    }
+
+    if (!cart.expires_at || !countdown.expired) {
+      return;
+    }
+
+    if (!hasShownExpiryToast.current) {
+      hasShownExpiryToast.current = true;
+      toast.error("Reservation expired", {
+        description:
+          "Your held tickets were released after 10 minutes. Add them again to continue.",
+      });
+    }
+
+    setIsCartOpen(false);
+    void clearCart();
+  }, [cart.expires_at, cart.items.length, countdown.expired]);
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
@@ -231,7 +257,7 @@ export default function Header() {
                 <Button
                   asChild
                   className="w-full rounded-full"
-                  disabled={cart.items.length === 0}
+                  disabled={cart.items.length === 0 || countdown.expired}
                 >
                   <Link to="/checkout" onClick={() => setIsCartOpen(false)}>
                     <Check className="size-4" />
@@ -241,6 +267,13 @@ export default function Header() {
               </div>
             </PopoverContent>
           </Popover>
+
+          <Button asChild variant="outline" className="rounded-full">
+            <Link to="/orders">
+              <ReceiptText className="size-4" />
+              Orders
+            </Link>
+          </Button>
 
           {session ? (
             <>
@@ -298,11 +331,20 @@ export default function Header() {
                         variant="ghost"
                         className="h-11 w-full justify-start rounded-2xl"
                       >
-                        <Link to="/account/security">
-                          <KeyRound className="size-4" />
-                          Change password
-                        </Link>
+                        <Link to="/orders">Orders</Link>
                       </Button>
+                      {isAdminUser ? null : (
+                        <Button
+                          asChild
+                          variant="ghost"
+                          className="h-11 w-full justify-start rounded-2xl"
+                        >
+                          <Link to="/account/security">
+                            <KeyRound className="size-4" />
+                            Change password
+                          </Link>
+                        </Button>
+                      )}
                       <Button
                         type="button"
                         variant="ghost"

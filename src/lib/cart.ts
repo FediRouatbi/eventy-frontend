@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   deleteReservation,
@@ -382,6 +382,7 @@ export async function moveSavedSelectionToCart(eventId: string, sessionId: strin
 
 export function useCart() {
   const [cart, setCart] = useState<CartSnapshot>(() => readCart());
+  const isSyncingRef = useRef(false);
 
   useEffect(() => {
     function syncCart() {
@@ -399,6 +400,38 @@ export function useCart() {
       window.removeEventListener("eventy-cart-change", syncCart);
     };
   }, []);
+
+  useEffect(() => {
+    if (!cart.reservation_id || !cart.reservation_token) {
+      return;
+    }
+
+    const sync = async () => {
+      if (isSyncingRef.current) {
+        return;
+      }
+
+      isSyncingRef.current = true;
+      try {
+        await syncCartWithReservation();
+      } finally {
+        isSyncingRef.current = false;
+      }
+    };
+
+    void sync();
+
+    const poll = window.setInterval(() => {
+      void sync();
+    }, 5000);
+
+    window.addEventListener("focus", sync);
+
+    return () => {
+      window.clearInterval(poll);
+      window.removeEventListener("focus", sync);
+    };
+  }, [cart.reservation_id, cart.reservation_token]);
 
   return cart;
 }
@@ -434,35 +467,30 @@ export function getCartSubtotal(items: CartItem[]) {
 }
 
 export function useReservationCountdown(expiresAt?: string) {
-  const [remainingMs, setRemainingMs] = useState(() =>
-    expiresAt ? Math.max(new Date(expiresAt).getTime() - Date.now(), 0) : 0,
-  );
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     if (!expiresAt) {
-      setRemainingMs(0);
       return;
     }
 
-    function updateRemainingTime() {
-      setRemainingMs(Math.max(new Date(expiresAt).getTime() - Date.now(), 0));
-    }
-
-    updateRemainingTime();
-    const interval = window.setInterval(updateRemainingTime, 1000);
-
+    setNow(Date.now());
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(interval);
   }, [expiresAt]);
 
   return useMemo(() => {
-    const totalSeconds = Math.floor(remainingMs / 1000);
+    const remainingMs = expiresAt
+      ? Math.max(new Date(expiresAt).getTime() - now, 0)
+      : 0;
+    const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
 
     return {
       remainingMs,
       formatted: `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`,
-      expired: remainingMs <= 0,
+      expired: Boolean(expiresAt) && remainingMs <= 0,
     };
-  }, [remainingMs]);
+  }, [expiresAt, now]);
 }

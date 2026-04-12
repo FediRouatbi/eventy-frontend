@@ -64,6 +64,7 @@ function EventDetailPage() {
   const selectedSessionTickets = selectedSession
     ? countTicketsLeft(selectedSession.ticket_types)
     : event.tickets_left;
+  const isSelectedSessionSoldOut = selectedSessionTickets === 0;
   const bannerImage = getEventBannerImage(event);
   const posterImage = getEventPosterImage(event);
   const selectedTicketCount = Object.values(ticketSelections).reduce(
@@ -84,6 +85,55 @@ function EventDetailPage() {
     setTicketSelections({});
   }, [selectedSessionId]);
 
+  useEffect(() => {
+    if (!selectedSession) {
+      return;
+    }
+
+    if (!isSelectedSessionSoldOut) {
+      return;
+    }
+
+    setTicketSelections({});
+  }, [isSelectedSessionSoldOut, selectedSession, selectedSessionId]);
+
+  useEffect(() => {
+    if (!selectedSession) {
+      return;
+    }
+
+    const ticketTypes = selectedSession.ticket_types ?? [];
+
+    setTicketSelections((current) => {
+      let changed = false;
+      const next: Record<string, number> = { ...current };
+      const ticketTypeIds = new Set(ticketTypes.map((ticketType) => String(ticketType.id)));
+
+      for (const [ticketTypeId, quantity] of Object.entries(next)) {
+        if (!ticketTypeIds.has(ticketTypeId)) {
+          delete next[ticketTypeId];
+          changed = true;
+        }
+      }
+
+      for (const ticketType of ticketTypes) {
+        const ticketTypeId = String(ticketType.id);
+        const currentQuantity = next[ticketTypeId] ?? 0;
+        const clamped = Math.max(
+          0,
+          Math.min(currentQuantity, ticketType.max_per_order, ticketType.quantity),
+        );
+
+        if (clamped !== currentQuantity) {
+          next[ticketTypeId] = clamped;
+          changed = true;
+        }
+      }
+
+      return changed ? next : current;
+    });
+  }, [selectedSession, selectedSessionId]);
+
   function updateTicketSelection(
     ticketTypeId: string,
     nextQuantity: number,
@@ -102,6 +152,13 @@ function EventDetailPage() {
   }
 
   async function handleGetTickets() {
+    if (isSelectedSessionSoldOut) {
+      toast.error("Sold out", {
+        description: "Pick another session to continue.",
+      });
+      return;
+    }
+
     if (!selectedSession || selectedTicketCount === 0) {
       toast.error("Select tickets first", {
         description: "Choose at least one ticket type to continue.",
@@ -151,6 +208,13 @@ function EventDetailPage() {
   }
 
   function handleSaveForLater() {
+    if (isSelectedSessionSoldOut) {
+      toast.error("Sold out", {
+        description: "Pick another session to save ticket selections.",
+      });
+      return;
+    }
+
     if (!selectedSession || selectedTicketCount === 0) {
       toast.error("Select tickets first", {
         description: "Choose at least one ticket type before saving.",
@@ -288,6 +352,8 @@ function EventDetailPage() {
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 {sessions.map((session) => {
                   const isSelected = session.id === selectedSession?.id;
+                  const ticketsLeft = countTicketsLeft(session.ticket_types);
+                  const isSoldOut = ticketsLeft === 0;
 
                   return (
                     <button
@@ -317,8 +383,14 @@ function EventDetailPage() {
                             event.currency,
                           )}
                         </span>
-                        <span className="rounded-full bg-background/90 px-3 py-1 text-muted-foreground">
-                          {countTicketsLeft(session.ticket_types)} tickets
+                        <span
+                          className={`rounded-full px-3 py-1 ${
+                            isSoldOut
+                              ? "border border-destructive/20 bg-destructive/10 text-destructive"
+                              : "bg-background/90 text-muted-foreground"
+                          }`}
+                        >
+                          {isSoldOut ? "Sold out" : `${ticketsLeft} tickets`}
                         </span>
                       </div>
                     </button>
@@ -353,7 +425,7 @@ function EventDetailPage() {
               <p className="mt-2 text-sm text-muted-foreground">
                 {selectedSessionTickets > 0
                   ? `${selectedSessionTickets} tickets still available`
-                  : "Demand is high for this event"}
+                  : "Sold out for this session"}
               </p>
             </div>
 
@@ -362,7 +434,25 @@ function EventDetailPage() {
                 Ticket selection
               </p>
               {selectedSession ? (
-                <>
+                isSelectedSessionSoldOut ? (
+                  <div className="mt-4 rounded-[1.35rem] border border-destructive/25 bg-destructive/5 p-5">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-1 flex size-10 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
+                        <Ticket className="size-4" />
+                      </div>
+                      <div>
+                        <p className="text-base font-semibold text-foreground">
+                          This session is sold out
+                        </p>
+                        <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                          There are no tickets left for this date/time. Pick another
+                          session above to continue.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
                   <p className="mt-3 font-semibold text-foreground">
                     {formatDateRangeLabel(
                       selectedSession.starts_at,
@@ -399,7 +489,9 @@ function EventDetailPage() {
                         </div>
                         <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
                           <span className="rounded-full bg-card px-3 py-1">
-                            {ticketType.quantity} available
+                            {ticketType.quantity > 0
+                              ? `${ticketType.quantity} available`
+                              : "Sold out"}
                           </span>
                           <span className="rounded-full bg-card px-3 py-1">
                             Max {ticketType.max_per_order} per order
@@ -457,7 +549,8 @@ function EventDetailPage() {
                       </div>
                     ))}
                   </div>
-                </>
+                  </>
+                )
               ) : (
                 <p className="mt-3 text-sm text-muted-foreground">
                   Session options will appear here.
@@ -494,14 +587,16 @@ function EventDetailPage() {
                 size="lg"
                 className="w-full rounded-full"
                 onClick={() => void handleGetTickets()}
+                disabled={isSelectedSessionSoldOut || selectedTicketCount === 0}
               >
-                Add to cart
+                {isSelectedSessionSoldOut ? "Sold out" : "Add to cart"}
               </Button>
               <Button
                 size="lg"
                 variant="outline"
                 className="w-full rounded-full bg-card"
                 onClick={handleSaveForLater}
+                disabled={isSelectedSessionSoldOut || selectedTicketCount === 0}
               >
                 Save for later
               </Button>
