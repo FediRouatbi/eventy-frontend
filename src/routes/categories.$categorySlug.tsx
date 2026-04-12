@@ -4,9 +4,11 @@ import { Button } from "#/components/ui/button";
 import { SessionChips } from "#/features/events/components/SessionChips";
 import {
   formatDateLabel,
+  formatDateRangeLabel,
   formatPriceLabel,
-  formatTimeLabel,
+  formatTimeRangeLabel,
   getCategoryTheme,
+  getEventBannerImage,
   normalizePublicSessions,
   getPrimarySession,
 } from "#/features/events/display";
@@ -122,6 +124,7 @@ function CategoryPage() {
           {events.map((event) => {
             const eventTheme = getCategoryTheme(event.category_slug);
             const primarySession = getPrimarySession(event);
+            const bannerImage = getEventBannerImage(event);
 
             return (
               <article
@@ -129,8 +132,18 @@ function CategoryPage() {
                 className="overflow-hidden rounded-[1.75rem] border border-border/70 bg-card/85 shadow-sm"
               >
                 <div
-                  className={`h-36 bg-gradient-to-br ${eventTheme.cardGradient} p-5 text-primary-foreground`}
+                  className={`relative h-36 bg-gradient-to-br ${eventTheme.cardGradient} p-5 text-primary-foreground`}
                 >
+                  {bannerImage ? (
+                    <>
+                      <img
+                        src={bannerImage}
+                        alt={event.title}
+                        className="absolute inset-0 h-full w-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                    </>
+                  ) : null}
                   <div className="flex items-start justify-between gap-4">
                     <span className="rounded-full bg-black/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-white/90 backdrop-blur-sm">
                       {formatPriceLabel(event.price_from, event.currency)}
@@ -154,15 +167,17 @@ function CategoryPage() {
                   </p>
                   <div className="mt-5 grid gap-2 text-sm text-muted-foreground">
                     <p>
-                      {formatDateLabel(
+                      {formatDateRangeLabel(
                         primarySession?.starts_at ??
                           event.next_session_starts_at,
+                        primarySession?.ends_at,
                       )}
                     </p>
                     <p>
-                      {formatTimeLabel(
+                      {formatTimeRangeLabel(
                         primarySession?.starts_at ??
                           event.next_session_starts_at,
+                        primarySession?.ends_at,
                       )}
                     </p>
                     <p className="inline-flex items-center gap-2">

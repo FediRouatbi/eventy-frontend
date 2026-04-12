@@ -4,6 +4,48 @@
  */
 
 export interface paths {
+    "/v1/admins/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get admin overview
+         * @description Organizer admins and super admins can fetch overview metrics, recent events, upcoming sessions, and attention items scoped to their access.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Admin overview */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminOverview"];
+                    };
+                };
+                401: components["responses"]["ErrorResponse"];
+                403: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admins/organizers": {
         parameters: {
             query?: never;
@@ -13,7 +55,7 @@ export interface paths {
         };
         /**
          * List organizers
-         * @description Super admins can list organizers and see how many organizer admin accounts each one has.
+         * @description Super admins can list organizers with the primary linked admin account plus event and session totals for each organizer.
          */
         get: {
             parameters: {
@@ -30,7 +72,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["OrganizerSummary"][];
+                        "application/json": components["schemas"]["OrganizerListItem"][];
                     };
                 };
                 401: components["responses"]["ErrorResponse"];
@@ -78,7 +120,199 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/admins/organizers/{organizerID}/admin": {
+    "/v1/admins/organizers/{organizerID}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get organizer
+         * @description Super admins can fetch a single organizer with its admin list and organizer-scoped event summaries in one response.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organizerID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Organizer details */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OrganizerDetail"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                401: components["responses"]["ErrorResponse"];
+                403: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Delete organizer
+         * @description Super admins can delete an organizer.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organizerID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Organizer deleted successfully */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MessageResponse"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                401: components["responses"]["ErrorResponse"];
+                403: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * Update organizer
+         * @description Super admins can update an organizer's name and slug.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organizerID: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateOrganizerInput"];
+                };
+            };
+            responses: {
+                /** @description Organizer updated successfully */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Organizer"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                401: components["responses"]["ErrorResponse"];
+                403: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                409: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
+        trace?: never;
+    };
+    "/v1/admins/organizers/{organizerID}/admins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List organizer admins
+         * @description Super admins can list every organizer admin attached to a specific organizer.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organizerID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Organizer admin list */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OrganizerAdmin"][];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                401: components["responses"]["ErrorResponse"];
+                403: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
+        put?: never;
+        /**
+         * Add organizer admin
+         * @description Super admins can add another organizer admin to an existing organizer.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organizerID: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AddOrganizerAdminInput"];
+                };
+            };
+            responses: {
+                /** @description Organizer admin created successfully */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OrganizerAdmin"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                401: components["responses"]["ErrorResponse"];
+                403: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                409: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admins/organizers/{organizerID}/admins/{adminID}": {
         parameters: {
             query?: never;
             header?: never;
@@ -87,7 +321,7 @@ export interface paths {
         };
         /**
          * Get organizer admin
-         * @description Super admins can fetch the single organizer admin account attached to a specific organizer.
+         * @description Super admins can fetch a single organizer admin attached to a specific organizer.
          */
         get: {
             parameters: {
@@ -95,6 +329,7 @@ export interface paths {
                 header?: never;
                 path: {
                     organizerID: string;
+                    adminID: string;
                 };
                 cookie?: never;
             };
@@ -118,13 +353,81 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete organizer admin
+         * @description Super admins can delete an organizer admin as long as the organizer will still have at least one admin account remaining.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organizerID: string;
+                    adminID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Organizer admin deleted successfully */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MessageResponse"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                401: components["responses"]["ErrorResponse"];
+                403: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                409: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update organizer admin
+         * @description Super admins can update an organizer admin's name and email.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organizerID: string;
+                    adminID: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateOrganizerAdminInput"];
+                };
+            };
+            responses: {
+                /** @description Organizer admin updated successfully */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OrganizerAdmin"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                401: components["responses"]["ErrorResponse"];
+                403: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                409: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
         trace?: never;
     };
-    "/v1/admins/organizers/{organizerID}/admin/password": {
+    "/v1/admins/organizers/{organizerID}/admins/{adminID}/password": {
         parameters: {
             query?: never;
             header?: never;
@@ -139,7 +442,7 @@ export interface paths {
         head?: never;
         /**
          * Reset organizer admin password
-         * @description Super admins can set a new password for the organizer admin account attached to an organizer.
+         * @description Super admins can set a new password for a specific organizer admin account.
          */
         patch: {
             parameters: {
@@ -147,6 +450,7 @@ export interface paths {
                 header?: never;
                 path: {
                     organizerID: string;
+                    adminID: string;
                 };
                 cookie?: never;
             };
@@ -233,6 +537,114 @@ export interface paths {
                 500: components["responses"]["ErrorResponse"];
             };
         };
+        /**
+         * Delete category
+         * @description Super admins can delete a category by ID.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    categoryID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Category deleted successfully */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MessageResponse"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                401: components["responses"]["ErrorResponse"];
+                403: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * Update category
+         * @description Super admins can update a category by ID.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    categoryID: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateCategoryInput"];
+                };
+            };
+            responses: {
+                /** @description Category updated successfully */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Category"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                401: components["responses"]["ErrorResponse"];
+                403: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                409: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
+        trace?: never;
+    };
+    "/v1/public/categories/{categorySlug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get public category by slug
+         * @description Returns a category by slug for public discovery pages.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    categorySlug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Category details */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Category"];
+                    };
+                };
+                404: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -437,10 +849,75 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete event
+         * @description Organizer admins can only delete events belonging to their organizer. Super admins can delete any event.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    eventID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Event deleted successfully */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MessageResponse"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                401: components["responses"]["ErrorResponse"];
+                403: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update event
+         * @description Organizer admins can only update events belonging to their organizer. Super admins can update any event.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    eventID: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateEventInput"];
+                };
+            };
+            responses: {
+                /** @description Event updated successfully */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Event"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                401: components["responses"]["ErrorResponse"];
+                403: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                409: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
         trace?: never;
     };
     "/v1/events/{eventID}/sessions": {
@@ -527,7 +1004,35 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete event session */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    eventID: string;
+                    sessionID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Session deleted successfully */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MessageResponse"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                401: components["responses"]["ErrorResponse"];
+                403: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
         options?: never;
         head?: never;
         /** Update event session */
@@ -651,7 +1156,36 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete ticket type */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    eventID: string;
+                    sessionID: string;
+                    ticketTypeID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Ticket type deleted successfully */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MessageResponse"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                401: components["responses"]["ErrorResponse"];
+                403: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
         options?: never;
         head?: never;
         /** Update ticket type */
@@ -1130,10 +1664,64 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete current user account */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DeleteAccountInput"];
+                };
+            };
+            responses: {
+                /** @description Account deleted successfully */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
         options?: never;
         head?: never;
-        patch?: never;
+        /** Update current user profile */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateProfileInput"];
+                };
+            };
+            responses: {
+                /** @description Profile updated successfully */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Profile"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                401: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                409: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
         trace?: never;
     };
 }
@@ -1166,11 +1754,47 @@ export interface components {
             /** @example secret123 */
             admin_password: string;
         };
+        AddOrganizerAdminInput: {
+            /** @example Lagos Organizer Admin */
+            admin_name: string;
+            /**
+             * Format: email
+             * @example organizer@example.com
+             */
+            admin_email: string;
+            /** @example secret123 */
+            admin_password: string;
+        };
+        UpdateOrganizerInput: {
+            /** @example Eventy Lagos */
+            organizer_name: string;
+            /** @example eventy-lagos */
+            organizer_slug: string;
+        };
+        UpdateOrganizerAdminInput: {
+            /** @example Lagos Organizer Admin */
+            admin_name: string;
+            /**
+             * Format: email
+             * @example organizer@example.com
+             */
+            admin_email: string;
+        };
         ResetOrganizerAdminPasswordInput: {
             /** @example newSecret123 */
             password: string;
         };
         CreateCategoryInput: {
+            /** @example Cinema */
+            name: string;
+            /** @example cinema */
+            slug: string;
+            /** @example Curated screenings, premieres, and cultural film nights. */
+            description?: string;
+            /** @example https://example.com/cinema.jpg */
+            image_url?: string;
+        };
+        UpdateCategoryInput: {
             /** @example Cinema */
             name: string;
             /** @example cinema */
@@ -1186,6 +1810,46 @@ export interface components {
              * @description Required for super admins. Ignored unless it matches the token organizer for organizer admins.
              */
             organizer_id?: string;
+            /** Format: uuid */
+            category_id: string;
+            /** @example Lagos Tech Expo 2026 */
+            title: string;
+            /** @example lagos-tech-expo-2026 */
+            slug: string;
+            description: string;
+            /** @example Landmark Centre */
+            venue_name: string;
+            /** @example Water Corporation Drive, Victoria Island */
+            venue_address: string;
+            /** @example Lagos */
+            city: string;
+            /** @example Nigeria */
+            country: string;
+            /**
+             * Format: double
+             * @example 6.4281
+             */
+            latitude?: number | null;
+            /**
+             * Format: double
+             * @example 3.4219
+             */
+            longitude?: number | null;
+            /** @example https://example.com/banner.jpg */
+            banner_url?: string;
+            /** @example https://example.com/poster.jpg */
+            poster_url?: string;
+            /**
+             * @example draft
+             * @enum {string}
+             */
+            status: "draft" | "published" | "cancelled";
+            /** @example NGN */
+            currency: string;
+            /** @example false */
+            is_featured?: boolean;
+        };
+        UpdateEventInput: {
             /** Format: uuid */
             category_id: string;
             /** @example Lagos Tech Expo 2026 */
@@ -1310,6 +1974,19 @@ export interface components {
             /** @example newSecret123 */
             new_password: string;
         };
+        UpdateProfileInput: {
+            /** @example John Doe */
+            name: string;
+            /**
+             * Format: email
+             * @example john@example.com
+             */
+            email: string;
+        };
+        DeleteAccountInput: {
+            /** @example secret123 */
+            current_password: string;
+        };
         RefreshTokenInput: {
             refresh_token: string;
         };
@@ -1369,10 +2046,156 @@ export interface components {
             slug: string;
             /** @example 1 */
             admin_count: number;
+            /** @example 3 */
+            event_count: number;
+            /** @example 7 */
+            session_count: number;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
             updated_at: string;
+        };
+        OrganizerListItem: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            slug: string;
+            /** @example 1 */
+            admin_count: number;
+            /** @example 3 */
+            event_count: number;
+            /** @example 7 */
+            session_count: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            admin: components["schemas"]["OrganizerAdmin"] | null;
+        };
+        OrganizerDetail: {
+            organizer: components["schemas"]["OrganizerListItem"];
+            admins: components["schemas"]["OrganizerAdmin"][];
+            events: components["schemas"]["OrganizerManagedEvent"][];
+        };
+        OrganizerManagedEvent: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            slug: string;
+            /** @enum {string} */
+            status: "draft" | "published" | "cancelled";
+            currency: string;
+            city: string;
+            country: string;
+            /** @example 2 */
+            session_count: number;
+            /** @example 5 */
+            ticket_type_count: number;
+            /** Format: date-time */
+            next_session_starts_at?: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        AdminOverview: {
+            /** @example super_admin */
+            scope: string;
+            stats: components["schemas"]["AdminOverviewStats"];
+            needs_attention: components["schemas"]["AdminOverviewNeedsAttention"];
+            recent_events: components["schemas"]["AdminOverviewEvent"][];
+            upcoming_sessions: components["schemas"]["AdminOverviewSession"][];
+            organizers: components["schemas"]["AdminOverviewOrganizerSummary"][];
+        };
+        AdminOverviewStats: {
+            /** @example 12 */
+            events: number;
+            /** @example 8 */
+            published_events: number;
+            /** @example 4 */
+            draft_events: number;
+            /** @example 18 */
+            sessions: number;
+            /** @example 16 */
+            scheduled_sessions: number;
+            /** @example 24 */
+            ticket_types: number;
+            /** @example 6 */
+            categories: number;
+            /** @example 3 */
+            organizers: number;
+        };
+        AdminOverviewNeedsAttention: {
+            /** @example 4 */
+            draft_events_count: number;
+            /** @example 2 */
+            events_without_sessions_count: number;
+            /** @example 3 */
+            sessions_without_ticket_types_count: number;
+            events_without_sessions: components["schemas"]["AdminOverviewAttentionEvent"][];
+            sessions_without_ticket_types: components["schemas"]["AdminOverviewAttentionSession"][];
+        };
+        AdminOverviewEvent: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizer_id: string;
+            /** Format: uuid */
+            category_id: string;
+            title: string;
+            slug: string;
+            status: string;
+            venue_name: string;
+            city: string;
+            country: string;
+            organizer_name: string;
+            category_name: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        AdminOverviewSession: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            event_id: string;
+            event_title: string;
+            event_slug: string;
+            event_currency: string;
+            status: string;
+            /** Format: date-time */
+            starts_at: string;
+            /** @example 4 */
+            ticket_type_count: number;
+        };
+        AdminOverviewAttentionEvent: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            slug: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        AdminOverviewAttentionSession: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            event_id: string;
+            event_title: string;
+            /** Format: date-time */
+            starts_at: string;
+            status: string;
+        };
+        AdminOverviewOrganizerSummary: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            slug: string;
+            /** @example 3 */
+            event_count: number;
+            /** @example 7 */
+            session_count: number;
         };
         OrganizerAdmin: {
             /** Format: uuid */

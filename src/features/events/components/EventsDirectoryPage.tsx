@@ -15,6 +15,7 @@ import {
   formatDateLabel,
   formatPriceLabel,
   getCategoryTheme,
+  getEventBannerImage,
   getPrimarySession,
   normalizePublicSessions,
 } from "#/features/events/display";
@@ -169,13 +170,25 @@ export function EventsDirectoryPage({
           {filteredEvents.map((event) => {
             const theme = getCategoryTheme(event.category_slug);
             const primarySession = getPrimarySession(event);
+            const bannerImage = getEventBannerImage(event);
 
             return (
               <article
                 key={event.id}
                 className="flex flex-col overflow-hidden rounded-[1.55rem] border border-border/70 bg-card/90 shadow-sm"
               >
-                <div className={`h-28 bg-linear-to-br ${theme.cardGradient}`} />
+                <div className={`relative h-28 bg-linear-to-br ${theme.cardGradient}`}>
+                  {bannerImage ? (
+                    <>
+                      <img
+                        src={bannerImage}
+                        alt={event.title}
+                        className="absolute inset-0 h-full w-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
+                    </>
+                  ) : null}
+                </div>
                 <div className="grid flex-1 p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div>

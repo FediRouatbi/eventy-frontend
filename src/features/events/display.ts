@@ -1,8 +1,8 @@
 import type {
   ApiCategory,
   ApiPublicEventDetail,
-  ApiPublicSession,
   ApiPublicEventWithSessions,
+  ApiPublicSession,
 } from "#/lib/api/public";
 
 const categoryThemeBySlug: Record<
@@ -58,6 +58,45 @@ export function formatTimeLabel(isoDateTime?: string | null) {
   }).format(new Date(isoDateTime));
 }
 
+export function formatDateRangeLabel(
+  startsAt?: string | null,
+  endsAt?: string | null,
+) {
+  if (!startsAt) {
+    return "Upcoming soon";
+  }
+
+  if (!endsAt) {
+    return formatDateLabel(startsAt);
+  }
+
+  const startDate = new Date(startsAt);
+  const endDate = new Date(endsAt);
+  const sameDay =
+    startDate.getFullYear() === endDate.getFullYear() &&
+    startDate.getMonth() === endDate.getMonth() &&
+    startDate.getDate() === endDate.getDate();
+
+  return sameDay
+    ? formatDateLabel(startsAt)
+    : `${formatDateLabel(startsAt)} - ${formatDateLabel(endsAt)}`;
+}
+
+export function formatTimeRangeLabel(
+  startsAt?: string | null,
+  endsAt?: string | null,
+) {
+  if (!startsAt) {
+    return "Schedule to be announced";
+  }
+
+  if (!endsAt) {
+    return formatTimeLabel(startsAt);
+  }
+
+  return `${formatTimeLabel(startsAt)} - ${formatTimeLabel(endsAt)}`;
+}
+
 export function formatPriceLabel(price: number, currency: string) {
   const rounded = Number.isInteger(price) ? price.toFixed(0) : price.toFixed(2);
   return `${rounded} ${currency}`;
@@ -87,6 +126,22 @@ export function getPrimarySession(event: ApiPublicEventWithSessions) {
   return sessions[0];
 }
 
+export function getEventBannerImage(
+  event:
+    | Pick<ApiPublicEventWithSessions, "banner_url" | "poster_url">
+    | Pick<ApiPublicEventDetail, "banner_url" | "poster_url">,
+) {
+  return event.banner_url || event.poster_url || "";
+}
+
+export function getEventPosterImage(
+  event:
+    | Pick<ApiPublicEventWithSessions, "banner_url" | "poster_url">
+    | Pick<ApiPublicEventDetail, "banner_url" | "poster_url">,
+) {
+  return event.poster_url || event.banner_url || "";
+}
+
 export function countTicketsLeft(
   ticketTypes: ApiPublicEventDetail["sessions"][number]["ticket_types"] | null,
 ) {
@@ -112,7 +167,11 @@ export function getSessionPriceFrom(
 }
 
 export function normalizePublicSessions(
-  sessions: ApiPublicEventDetail["sessions"] | ApiPublicSession[] | null | undefined,
+  sessions:
+    | ApiPublicEventDetail["sessions"]
+    | ApiPublicSession[]
+    | null
+    | undefined,
 ) {
   return (sessions ?? []).map((session) => ({
     ...session,

@@ -76,14 +76,19 @@ import {
 } from "#/features/admin/components/AdminSurface";
 import { useAuthSession } from "#/lib/auth";
 import type { components } from "#/lib/api/generated/schema";
+import {
+  DEFAULT_CURRENCY_CODE,
+  DEFAULT_CURRENCY_LABEL,
+} from "#/lib/currency";
+import { UrlImagePreview } from "#/components/UrlImagePreview";
 
 type Category = components["schemas"]["Category"];
 type EventDetail = components["schemas"]["EventDetail"];
 type EventSessionDetail = components["schemas"]["EventSessionDetail"];
 type TicketType = components["schemas"]["TicketType"];
 
-const FIXED_CURRENCY_CODE = "TND";
-const FIXED_CURRENCY_LABEL = "TND (Tunisian dinar)";
+const FIXED_CURRENCY_CODE = DEFAULT_CURRENCY_CODE;
+const FIXED_CURRENCY_LABEL = DEFAULT_CURRENCY_LABEL;
 
 type EventFormValues = {
   category_id: string;
@@ -867,7 +872,7 @@ function AdminEventWorkspacePage() {
                                 readOnly
                               />
                               <p className="text-sm text-muted-foreground">
-                                Event pricing is currently fixed to Tunisia's
+                                Event pricing is currently fixed to the default
                                 currency.
                               </p>
                             </div>
@@ -900,6 +905,11 @@ function AdminEventWorkspacePage() {
                                 )}
                                 {...eventForm.register("banner_url")}
                               />
+                              <UrlImagePreview
+                                url={eventForm.watch("banner_url")}
+                                alt="Banner preview"
+                                variant="banner"
+                              />
                             </div>
                             <div className="space-y-2">
                               <Label htmlFor="event-poster">Poster URL</Label>
@@ -909,6 +919,12 @@ function AdminEventWorkspacePage() {
                                   Boolean(eventFormErrors.poster_url),
                                 )}
                                 {...eventForm.register("poster_url")}
+                              />
+                              <UrlImagePreview
+                                url={eventForm.watch("poster_url")}
+                                alt="Poster preview"
+                                variant="poster"
+                                className="max-w-[260px]"
                               />
                             </div>
                           </div>

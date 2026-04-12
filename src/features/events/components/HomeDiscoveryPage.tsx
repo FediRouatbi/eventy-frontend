@@ -15,6 +15,7 @@ import {
   formatPriceLabel,
   formatTimeLabel,
   getCategoryTheme,
+  getEventBannerImage,
   groupEventsByOrganizer,
   groupEventsByVenue,
   normalizePublicSessions,
@@ -30,12 +31,23 @@ type HomeDiscoveryPageProps = {
 function EventRailCard({ event }: { event: ApiPublicEventWithSessions }) {
   const theme = getCategoryTheme(event.category_slug);
   const primarySession = sortSessionsByStart(event.sessions ?? [])[0];
+  const bannerImage = getEventBannerImage(event);
 
   return (
     <article className="min-w-[280px] max-w-xs snap-start overflow-hidden rounded-[1.8rem] border border-white/10 bg-card/90 shadow-lg">
       <div
         className={`relative h-44 bg-linear-to-br ${theme.cardGradient} p-5 text-primary-foreground`}
       >
+        {bannerImage ? (
+          <>
+            <img
+              src={bannerImage}
+              alt={event.title}
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+          </>
+        ) : null}
         <div className="absolute inset-x-0 bottom-0 h-20 bg-linear-to-t from-black/70 to-transparent" />
         <div className="relative flex h-full flex-col justify-between">
           <div className="flex items-center justify-between gap-3">
@@ -236,6 +248,7 @@ export function HomeDiscoveryPage({
           <div className="mt-5 grid gap-4 lg:grid-cols-[1.35fr_0.85fr_0.85fr]">
             {[heroEvent, ...supportingEvents].map((event, index) => {
               const theme = getCategoryTheme(event.category_slug);
+              const bannerImage = getEventBannerImage(event);
               const primarySession = sortSessionsByStart(
                 normalizePublicSessions(event.sessions),
               )[0];
@@ -252,6 +265,16 @@ export function HomeDiscoveryPage({
                   <div
                     className={`relative ${index === 0 ? "h-60" : "h-36"} bg-linear-to-br ${theme.cardGradient} p-5 text-primary-foreground`}
                   >
+                    {bannerImage ? (
+                      <>
+                        <img
+                          src={bannerImage}
+                          alt={event.title}
+                          className="absolute inset-0 h-full w-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+                      </>
+                    ) : null}
                     <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/10 to-transparent" />
                     <div className="relative flex h-full flex-col justify-between">
                       <div className="flex items-start justify-between gap-3">

@@ -36,6 +36,7 @@ import {
   SheetTrigger,
 } from "#/components/ui/sheet";
 import { Textarea } from "#/components/ui/textarea";
+import { UrlImagePreview } from "#/components/UrlImagePreview";
 import {
   AdminEmptyState,
   AdminKpiStrip,
@@ -423,13 +424,19 @@ function AdminCategoriesPage() {
                             },
                           })}
                         />
-                        <FieldError
-                          message={categoryFormErrors.image_url?.message}
-                        />
-                      </div>
+                      <FieldError
+                        message={categoryFormErrors.image_url?.message}
+                      />
+                      <UrlImagePreview
+                        url={categoryForm.watch("image_url")}
+                        alt="Category image preview"
+                        variant="square"
+                        className="max-w-[220px]"
+                      />
                     </div>
+                  </div>
 
-                    <SheetFooter className="border-t border-border/70 pt-4">
+                  <SheetFooter className="border-t border-border/70 pt-4">
                       <SheetClose asChild>
                         <Button
                           type="button"
@@ -478,65 +485,78 @@ function AdminCategoriesPage() {
               }
             />
           ) : (
-            filteredCategories.map((category) => (
-              <Card
-                key={category.id}
-                className="rounded-[1.5rem] border-border/70 bg-background/65 shadow-none"
-              >
-                <CardContent className="p-5">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0 space-y-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-lg font-semibold text-foreground">
-                          {category.name}
-                        </p>
-                        <Badge variant="outline" className="rounded-full">
-                          {category.slug}
-                        </Badge>
-                        {category.image_url ? (
-                          <Badge variant="secondary" className="rounded-full">
-                            Image linked
-                          </Badge>
-                        ) : null}
-                      </div>
-                      <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                        {category.description || "No category description yet."}
-                      </p>
-                      <div className="flex flex-wrap gap-5 text-sm text-muted-foreground">
-                        <span>Created {formatDate(category.created_at)}</span>
-                        <span>Updated {formatDate(category.updated_at)}</span>
-                      </div>
-                    </div>
+            filteredCategories.map((category) => {
+              const thumbnailUrl = category.image_url ?? "";
 
-                    <div className="flex shrink-0 gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="rounded-full"
-                        onClick={() => openEditSheet(category)}
-                      >
-                        <Pencil className="size-4" />
-                        Edit
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
-                        disabled={deletingCategoryId === String(category.id)}
-                        onClick={() => setCategoryPendingDelete(category)}
-                      >
-                        {deletingCategoryId === String(category.id) ? (
-                          <LoaderCircle className="size-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="size-4" />
-                        )}
-                        Delete
-                      </Button>
+              return (
+                <Card
+                  key={category.id}
+                  className="rounded-[1.5rem] border-border/70 bg-background/65 shadow-none"
+                >
+                  <CardContent className="p-5">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="flex min-w-0 items-start gap-4">
+                        <UrlImagePreview
+                          url={thumbnailUrl}
+                          alt={`${category.name} image`}
+                          variant="square"
+                          className="w-20 shrink-0 rounded-[1.5rem] border-border/60 bg-gradient-to-br from-primary/10 via-muted/10 to-accent/10"
+                          fallback={
+                            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/10 via-muted/10 to-accent/10">
+                              <Tag className="size-5 text-muted-foreground/70" />
+                            </div>
+                          }
+                        />
+
+                        <div className="min-w-0 space-y-3">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-lg font-semibold text-foreground">
+                              {category.name}
+                            </p>
+                            <Badge variant="outline" className="rounded-full">
+                              {category.slug}
+                            </Badge>
+                          </div>
+                          <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+                            {category.description || "No category description yet."}
+                          </p>
+                          <div className="flex flex-wrap gap-5 text-sm text-muted-foreground">
+                            <span>Created {formatDate(category.created_at)}</span>
+                            <span>Updated {formatDate(category.updated_at)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex shrink-0 gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-full"
+                          onClick={() => openEditSheet(category)}
+                        >
+                          <Pencil className="size-4" />
+                          Edit
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          disabled={deletingCategoryId === String(category.id)}
+                          onClick={() => setCategoryPendingDelete(category)}
+                        >
+                          {deletingCategoryId === String(category.id) ? (
+                            <LoaderCircle className="size-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="size-4" />
+                          )}
+                          Delete
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                  </CardContent>
+                </Card>
+              );
+            })
           )}
       </AdminSectionCard>
 

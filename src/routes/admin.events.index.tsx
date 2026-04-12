@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LoaderCircle, Plus, Search, Trash2 } from "lucide-react";
+import { Image, LoaderCircle, Plus, Search, Trash2 } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -45,6 +45,7 @@ import {
 } from "#/components/ui/sheet";
 import { Textarea } from "#/components/ui/textarea";
 import { AdminLoadingGrid } from "#/features/admin/components/AdminSurface";
+import { UrlImagePreview } from "#/components/UrlImagePreview";
 import {
   type AdminEventListItem,
   createEvent,
@@ -56,12 +57,15 @@ import {
 import { isSuperAdminSession } from "#/features/admin/auth";
 import { useAuthSession } from "#/lib/auth";
 import type { components } from "#/lib/api/generated/schema";
+import {
+  DEFAULT_CURRENCY_CODE,
+  DEFAULT_CURRENCY_LABEL,
+} from "#/lib/currency";
 
 type Category = components["schemas"]["Category"];
 type OrganizerSummary = components["schemas"]["OrganizerSummary"];
-
-const FIXED_CURRENCY_CODE = "TND";
-const FIXED_CURRENCY_LABEL = "TND (Tunisian dinar)";
+const FIXED_CURRENCY_CODE = DEFAULT_CURRENCY_CODE;
+const FIXED_CURRENCY_LABEL = DEFAULT_CURRENCY_LABEL;
 
 type EventFormValues = {
   organizer_id: string;
@@ -589,7 +593,7 @@ function AdminEventsPage() {
                         readOnly
                       />
                       <p className="text-sm text-muted-foreground">
-                        All events are currently created in Tunisia's currency.
+                        All events are currently created in the default currency.
                       </p>
                     </div>
                   </div>
@@ -630,6 +634,11 @@ function AdminEventsPage() {
                       <FieldError
                         message={eventFormErrors.banner_url?.message}
                       />
+                      <UrlImagePreview
+                        url={eventForm.watch("banner_url")}
+                        alt="Banner preview"
+                        variant="banner"
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="event-poster">Poster URL</Label>
@@ -648,6 +657,12 @@ function AdminEventsPage() {
                       />
                       <FieldError
                         message={eventFormErrors.poster_url?.message}
+                      />
+                      <UrlImagePreview
+                        url={eventForm.watch("poster_url")}
+                        alt="Poster preview"
+                        variant="poster"
+                        className="max-w-[260px]"
                       />
                     </div>
                   </div>
@@ -845,6 +860,7 @@ function AdminEventsPage() {
                 const ticketTypeCount = event.ticket_type_count;
                 const hasTicketsGap =
                   event.has_sessions_without_tickets && sessionCount > 0;
+                const thumbnailUrl = event.poster_url || event.banner_url || "";
 
                 return (
                   <Card
@@ -871,82 +887,99 @@ function AdminEventsPage() {
                     }}
                     className="group cursor-pointer rounded-[1.5rem] border-border/70 bg-background/72 shadow-none transition-colors duration-200 hover:border-primary/35 hover:bg-background/88 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                   >
-                    <CardContent className="space-y-5 p-5 sm:p-6">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="space-y-1.5">
-                          <p className="text-lg font-medium text-foreground">
-                            {event.title}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {event.slug}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline">{event.status}</Badge>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={(mouseEvent) => {
-                              mouseEvent.stopPropagation();
-                              setEventPendingDelete(event);
-                            }}
-                            onKeyDown={(keyboardEvent) => {
-                              keyboardEvent.stopPropagation();
-                            }}
-                            className="rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            disabled={
-                              deleteEventMutation.isPending &&
-                              String(eventPendingDelete?.id) === String(event.id)
+                    <CardContent className="p-5 sm:p-6">
+                      <div className="flex flex-col gap-5 sm:flex-row">
+                        <div className="shrink-0">
+                          <UrlImagePreview
+                            url={thumbnailUrl}
+                            alt={`${event.title} artwork`}
+                            variant="poster"
+                            className="w-full rounded-[1.5rem] border-border/60 bg-gradient-to-br from-primary/12 via-muted/10 to-accent/10 sm:w-28"
+                            fallback={
+                              <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/12 via-muted/10 to-accent/10">
+                                <Image className="size-5 text-muted-foreground/70" />
+                              </div>
                             }
-                          >
-                            {deleteEventMutation.isPending &&
-                            String(eventPendingDelete?.id) === String(event.id) ? (
-                              <LoaderCircle className="size-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="size-4" />
-                            )}
-                          </Button>
+                          />
                         </div>
-                      </div>
-                      <div className="grid gap-4 text-sm text-muted-foreground lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_auto] lg:items-end">
-                        <div className="space-y-2">
-                          <p>{event.category_name}</p>
-                          <p>Updated {formatDate(event.updated_at)}</p>
-                        </div>
-                        <div className="space-y-2">
-                          <p>
-                            {event.venue_name}, {event.city}, {event.country}
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            <Badge variant="secondary" className="rounded-full">
-                              {sessionCount} sessions
-                            </Badge>
-                            <Badge variant="secondary" className="rounded-full">
-                              {ticketTypeCount} ticket types
-                            </Badge>
-                            <Badge
-                              variant="secondary"
-                              className="rounded-full"
-                            >
-                              {event.currency}
-                            </Badge>
+
+                        <div className="min-w-0 flex-1 space-y-5">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0 space-y-1.5">
+                              <p className="truncate text-lg font-medium text-foreground">
+                                {event.title}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {event.slug}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline">{event.status}</Badge>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={(mouseEvent) => {
+                                  mouseEvent.stopPropagation();
+                                  setEventPendingDelete(event);
+                                }}
+                                onKeyDown={(keyboardEvent) => {
+                                  keyboardEvent.stopPropagation();
+                                }}
+                                className="rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                disabled={
+                                  deleteEventMutation.isPending &&
+                                  String(eventPendingDelete?.id) === String(event.id)
+                                }
+                              >
+                                {deleteEventMutation.isPending &&
+                                String(eventPendingDelete?.id) === String(event.id) ? (
+                                  <LoaderCircle className="size-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="size-4" />
+                                )}
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                        <div className="space-y-2 text-right">
-                          {isSuperAdmin ? <p>{event.organizer_name}</p> : null}
-                          <p>Created {formatDate(event.created_at)}</p>
+
+                          <div className="grid gap-4 text-sm text-muted-foreground lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)_auto] lg:items-end">
+                            <div className="space-y-2">
+                              <p>{event.category_name}</p>
+                              <p>Updated {formatDate(event.updated_at)}</p>
+                            </div>
+                            <div className="space-y-2">
+                              <p>
+                                {event.venue_name}, {event.city}, {event.country}
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                <Badge variant="secondary" className="rounded-full">
+                                  {sessionCount} sessions
+                                </Badge>
+                                <Badge variant="secondary" className="rounded-full">
+                                  {ticketTypeCount} ticket types
+                                </Badge>
+                                <Badge variant="secondary" className="rounded-full">
+                                  {event.currency}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="space-y-2 text-right">
+                              {isSuperAdmin ? <p>{event.organizer_name}</p> : null}
+                              <p>Created {formatDate(event.created_at)}</p>
+                            </div>
+                          </div>
+
+                          {sessionCount === 0 ? (
+                            <p className="rounded-2xl border border-dashed border-border/70 bg-background/65 px-4 py-3 text-sm text-muted-foreground">
+                              Next action: add the first session to make this event bookable.
+                            </p>
+                          ) : hasTicketsGap ? (
+                            <p className="rounded-2xl border border-dashed border-border/70 bg-background/65 px-4 py-3 text-sm text-muted-foreground">
+                              Next action: finish ticket setup for sessions that still have no ticket types.
+                            </p>
+                          ) : null}
                         </div>
                       </div>
-                      {sessionCount === 0 ? (
-                        <p className="rounded-2xl border border-dashed border-border/70 bg-background/65 px-4 py-3 text-sm text-muted-foreground">
-                          Next action: add the first session to make this event bookable.
-                        </p>
-                      ) : hasTicketsGap ? (
-                        <p className="rounded-2xl border border-dashed border-border/70 bg-background/65 px-4 py-3 text-sm text-muted-foreground">
-                          Next action: finish ticket setup for sessions that still have no ticket types.
-                        </p>
-                      ) : null}
                     </CardContent>
                   </Card>
                 );

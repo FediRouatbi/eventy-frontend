@@ -1,3 +1,5 @@
+import { queryOptions } from "@tanstack/react-query";
+
 import { API_BASE_URL, apiClient } from "./client";
 import type { components } from "./generated/schema";
 
@@ -107,4 +109,25 @@ export async function getPublicCategoryBySlug(categorySlug: string) {
       sessions: event.sessions ?? [],
     })),
   };
+}
+
+export function publicEventsQueryOptions() {
+  return queryOptions({
+    queryKey: ["public", "events"],
+    queryFn: listPublicEvents,
+  });
+}
+
+export function publicEventDetailQueryOptions(eventID: string) {
+  return queryOptions({
+    queryKey: ["public", "events", eventID],
+    queryFn: () => getPublicEventById(eventID),
+  });
+}
+
+export function publicCategoryDetailQueryOptions(categorySlug: string) {
+  return queryOptions({
+    queryKey: ["public", "categories", categorySlug],
+    queryFn: () => getPublicCategoryBySlug(categorySlug),
+  });
 }
