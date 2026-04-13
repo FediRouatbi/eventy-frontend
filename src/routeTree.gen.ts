@@ -20,16 +20,19 @@ import { Route as CompleteRouteImport } from './routes/complete'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TicketsIndexRouteImport } from './routes/tickets.index'
 import { Route as OrdersIndexRouteImport } from './routes/orders.index'
 import { Route as EventsIndexRouteImport } from './routes/events.index'
 import { Route as CheckoutIndexRouteImport } from './routes/checkout.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as OrdersOrderIdRouteImport } from './routes/orders.$orderId'
 import { Route as EventsEventIdRouteImport } from './routes/events.$eventId'
 import { Route as CheckoutSuccessRouteImport } from './routes/checkout.success'
 import { Route as CheckoutCompleteRouteImport } from './routes/checkout.complete'
 import { Route as CategoriesCategorySlugRouteImport } from './routes/categories.$categorySlug'
 import { Route as AdminResetPasswordRouteImport } from './routes/admin.reset-password'
 import { Route as AdminOrganizersRouteImport } from './routes/admin.organizers'
+import { Route as AdminCheckInRouteImport } from './routes/admin.check-in'
 import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
 import { Route as AccountSecurityRouteImport } from './routes/account.security'
 import { Route as AccountProfileRouteImport } from './routes/account.profile'
@@ -92,6 +95,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TicketsIndexRoute = TicketsIndexRouteImport.update({
+  id: '/tickets/',
+  path: '/tickets/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrdersIndexRoute = OrdersIndexRouteImport.update({
   id: '/orders/',
   path: '/orders/',
@@ -111,6 +119,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AdminRoute,
+} as any)
+const OrdersOrderIdRoute = OrdersOrderIdRouteImport.update({
+  id: '/orders/$orderId',
+  path: '/orders/$orderId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const EventsEventIdRoute = EventsEventIdRouteImport.update({
   id: '/events/$eventId',
@@ -140,6 +153,11 @@ const AdminResetPasswordRoute = AdminResetPasswordRouteImport.update({
 const AdminOrganizersRoute = AdminOrganizersRouteImport.update({
   id: '/organizers',
   path: '/organizers',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCheckInRoute = AdminCheckInRouteImport.update({
+  id: '/check-in',
+  path: '/check-in',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminCategoriesRoute = AdminCategoriesRouteImport.update({
@@ -189,16 +207,19 @@ export interface FileRoutesByFullPath {
   '/account/profile': typeof AccountProfileRoute
   '/account/security': typeof AccountSecurityRoute
   '/admin/categories': typeof AdminCategoriesRoute
+  '/admin/check-in': typeof AdminCheckInRoute
   '/admin/organizers': typeof AdminOrganizersRouteWithChildren
   '/admin/reset-password': typeof AdminResetPasswordRoute
   '/categories/$categorySlug': typeof CategoriesCategorySlugRoute
   '/checkout/complete': typeof CheckoutCompleteRoute
   '/checkout/success': typeof CheckoutSuccessRoute
   '/events/$eventId': typeof EventsEventIdRoute
+  '/orders/$orderId': typeof OrdersOrderIdRoute
   '/admin/': typeof AdminIndexRoute
   '/checkout/': typeof CheckoutIndexRoute
   '/events/': typeof EventsIndexRoute
   '/orders/': typeof OrdersIndexRoute
+  '/tickets/': typeof TicketsIndexRoute
   '/admin/events/$eventId': typeof AdminEventsEventIdRoute
   '/admin/organizers/$organizerId': typeof AdminOrganizersOrganizerIdRoute
   '/admin/events/': typeof AdminEventsIndexRoute
@@ -216,16 +237,19 @@ export interface FileRoutesByTo {
   '/account/profile': typeof AccountProfileRoute
   '/account/security': typeof AccountSecurityRoute
   '/admin/categories': typeof AdminCategoriesRoute
+  '/admin/check-in': typeof AdminCheckInRoute
   '/admin/organizers': typeof AdminOrganizersRouteWithChildren
   '/admin/reset-password': typeof AdminResetPasswordRoute
   '/categories/$categorySlug': typeof CategoriesCategorySlugRoute
   '/checkout/complete': typeof CheckoutCompleteRoute
   '/checkout/success': typeof CheckoutSuccessRoute
   '/events/$eventId': typeof EventsEventIdRoute
+  '/orders/$orderId': typeof OrdersOrderIdRoute
   '/admin': typeof AdminIndexRoute
   '/checkout': typeof CheckoutIndexRoute
   '/events': typeof EventsIndexRoute
   '/orders': typeof OrdersIndexRoute
+  '/tickets': typeof TicketsIndexRoute
   '/admin/events/$eventId': typeof AdminEventsEventIdRoute
   '/admin/organizers/$organizerId': typeof AdminOrganizersOrganizerIdRoute
   '/admin/events': typeof AdminEventsIndexRoute
@@ -246,16 +270,19 @@ export interface FileRoutesById {
   '/account/profile': typeof AccountProfileRoute
   '/account/security': typeof AccountSecurityRoute
   '/admin/categories': typeof AdminCategoriesRoute
+  '/admin/check-in': typeof AdminCheckInRoute
   '/admin/organizers': typeof AdminOrganizersRouteWithChildren
   '/admin/reset-password': typeof AdminResetPasswordRoute
   '/categories/$categorySlug': typeof CategoriesCategorySlugRoute
   '/checkout/complete': typeof CheckoutCompleteRoute
   '/checkout/success': typeof CheckoutSuccessRoute
   '/events/$eventId': typeof EventsEventIdRoute
+  '/orders/$orderId': typeof OrdersOrderIdRoute
   '/admin/': typeof AdminIndexRoute
   '/checkout/': typeof CheckoutIndexRoute
   '/events/': typeof EventsIndexRoute
   '/orders/': typeof OrdersIndexRoute
+  '/tickets/': typeof TicketsIndexRoute
   '/admin/events/$eventId': typeof AdminEventsEventIdRoute
   '/admin/organizers/$organizerId': typeof AdminOrganizersOrganizerIdRoute
   '/admin/events/': typeof AdminEventsIndexRoute
@@ -277,16 +304,19 @@ export interface FileRouteTypes {
     | '/account/profile'
     | '/account/security'
     | '/admin/categories'
+    | '/admin/check-in'
     | '/admin/organizers'
     | '/admin/reset-password'
     | '/categories/$categorySlug'
     | '/checkout/complete'
     | '/checkout/success'
     | '/events/$eventId'
+    | '/orders/$orderId'
     | '/admin/'
     | '/checkout/'
     | '/events/'
     | '/orders/'
+    | '/tickets/'
     | '/admin/events/$eventId'
     | '/admin/organizers/$organizerId'
     | '/admin/events/'
@@ -304,16 +334,19 @@ export interface FileRouteTypes {
     | '/account/profile'
     | '/account/security'
     | '/admin/categories'
+    | '/admin/check-in'
     | '/admin/organizers'
     | '/admin/reset-password'
     | '/categories/$categorySlug'
     | '/checkout/complete'
     | '/checkout/success'
     | '/events/$eventId'
+    | '/orders/$orderId'
     | '/admin'
     | '/checkout'
     | '/events'
     | '/orders'
+    | '/tickets'
     | '/admin/events/$eventId'
     | '/admin/organizers/$organizerId'
     | '/admin/events'
@@ -333,16 +366,19 @@ export interface FileRouteTypes {
     | '/account/profile'
     | '/account/security'
     | '/admin/categories'
+    | '/admin/check-in'
     | '/admin/organizers'
     | '/admin/reset-password'
     | '/categories/$categorySlug'
     | '/checkout/complete'
     | '/checkout/success'
     | '/events/$eventId'
+    | '/orders/$orderId'
     | '/admin/'
     | '/checkout/'
     | '/events/'
     | '/orders/'
+    | '/tickets/'
     | '/admin/events/$eventId'
     | '/admin/organizers/$organizerId'
     | '/admin/events/'
@@ -364,8 +400,10 @@ export interface RootRouteChildren {
   AccountSecurityRoute: typeof AccountSecurityRoute
   CategoriesCategorySlugRoute: typeof CategoriesCategorySlugRoute
   EventsEventIdRoute: typeof EventsEventIdRoute
+  OrdersOrderIdRoute: typeof OrdersOrderIdRoute
   EventsIndexRoute: typeof EventsIndexRoute
   OrdersIndexRoute: typeof OrdersIndexRoute
+  TicketsIndexRoute: typeof TicketsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -447,6 +485,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tickets/': {
+      id: '/tickets/'
+      path: '/tickets'
+      fullPath: '/tickets/'
+      preLoaderRoute: typeof TicketsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/orders/': {
       id: '/orders/'
       path: '/orders'
@@ -474,6 +519,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/orders/$orderId': {
+      id: '/orders/$orderId'
+      path: '/orders/$orderId'
+      fullPath: '/orders/$orderId'
+      preLoaderRoute: typeof OrdersOrderIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/events/$eventId': {
       id: '/events/$eventId'
@@ -515,6 +567,13 @@ declare module '@tanstack/react-router' {
       path: '/organizers'
       fullPath: '/admin/organizers'
       preLoaderRoute: typeof AdminOrganizersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/check-in': {
+      id: '/admin/check-in'
+      path: '/check-in'
+      fullPath: '/admin/check-in'
+      preLoaderRoute: typeof AdminCheckInRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/categories': {
@@ -576,6 +635,7 @@ const AdminOrganizersRouteWithChildren = AdminOrganizersRoute._addFileChildren(
 
 interface AdminRouteChildren {
   AdminCategoriesRoute: typeof AdminCategoriesRoute
+  AdminCheckInRoute: typeof AdminCheckInRoute
   AdminOrganizersRoute: typeof AdminOrganizersRouteWithChildren
   AdminResetPasswordRoute: typeof AdminResetPasswordRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -585,6 +645,7 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminCategoriesRoute: AdminCategoriesRoute,
+  AdminCheckInRoute: AdminCheckInRoute,
   AdminOrganizersRoute: AdminOrganizersRouteWithChildren,
   AdminResetPasswordRoute: AdminResetPasswordRoute,
   AdminIndexRoute: AdminIndexRoute,
@@ -626,8 +687,10 @@ const rootRouteChildren: RootRouteChildren = {
   AccountSecurityRoute: AccountSecurityRoute,
   CategoriesCategorySlugRoute: CategoriesCategorySlugRoute,
   EventsEventIdRoute: EventsEventIdRoute,
+  OrdersOrderIdRoute: OrdersOrderIdRoute,
   EventsIndexRoute: EventsIndexRoute,
   OrdersIndexRoute: OrdersIndexRoute,
+  TicketsIndexRoute: TicketsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

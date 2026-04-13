@@ -140,6 +140,26 @@ export async function getCheckoutOrderByStripeSession(stripeSessionID: string) {
   );
 }
 
+export async function getMyCheckoutOrderByStripeSession(
+  stripeSessionID: string,
+  accessToken: string,
+) {
+  const response = await fetch(
+    `${API_BASE_URL}/v1/orders/stripe-sessions/${encodeURIComponent(stripeSessionID)}/checkout-order`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  return parseApiResponse<CheckoutOrderSummary>(response, "Failed to load order payment status");
+}
+
 export async function listMyCheckoutOrders(accessToken: string, limit = 20) {
   const response = await fetch(
     `${API_BASE_URL}/v1/orders?limit=${encodeURIComponent(String(limit))}`,
@@ -151,6 +171,16 @@ export async function listMyCheckoutOrders(accessToken: string, limit = 20) {
   );
 
   return parseApiResponse<CheckoutOrderSummary[]>(response, "Failed to load orders");
+}
+
+export async function getMyCheckoutOrderById(orderId: string, accessToken: string) {
+  const response = await fetch(`${API_BASE_URL}/v1/orders/${encodeURIComponent(orderId)}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  return parseApiResponse<CheckoutOrderSummary>(response, "Failed to load order");
 }
 
 export function checkoutOrderByStripeSessionQueryOptions(stripeSessionID: string) {

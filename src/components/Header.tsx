@@ -268,12 +268,22 @@ export default function Header() {
             </PopoverContent>
           </Popover>
 
-          <Button asChild variant="outline" className="rounded-full">
-            <Link to="/orders">
-              <ReceiptText className="size-4" />
-              Orders
-            </Link>
-          </Button>
+          {session ? (
+            <>
+              <Button asChild variant="outline" className="rounded-full">
+                <Link to="/tickets">
+                  <Ticket className="size-4" />
+                  Tickets
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="rounded-full">
+                <Link to="/orders">
+                  <ReceiptText className="size-4" />
+                  Orders
+                </Link>
+              </Button>
+            </>
+          ) : null}
 
           {session ? (
             <>
@@ -331,7 +341,20 @@ export default function Header() {
                         variant="ghost"
                         className="h-11 w-full justify-start rounded-2xl"
                       >
-                        <Link to="/orders">Orders</Link>
+                        <Link to="/tickets">
+                          <Ticket className="size-4" />
+                          Tickets
+                        </Link>
+                      </Button>
+                      <Button
+                        asChild
+                        variant="ghost"
+                        className="h-11 w-full justify-start rounded-2xl"
+                      >
+                        <Link to="/orders">
+                          <ReceiptText className="size-4" />
+                          Orders
+                        </Link>
                       </Button>
                       {isAdminUser ? null : (
                         <Button

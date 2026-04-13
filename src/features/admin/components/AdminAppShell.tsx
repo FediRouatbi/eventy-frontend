@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   LogOut,
   MoveRight,
+  ScanLine,
   ShieldCheck,
   Tag,
 } from "lucide-react";
@@ -23,7 +24,12 @@ import { logout } from "#/lib/api/auth";
 import { cn } from "#/lib/utils";
 
 type NavItem = {
-  to: "/admin" | "/admin/events" | "/admin/categories" | "/admin/organizers";
+  to:
+    | "/admin"
+    | "/admin/events"
+    | "/admin/check-in"
+    | "/admin/categories"
+    | "/admin/organizers";
   label: string;
   icon: ReactNode;
   superAdminOnly?: boolean;
@@ -39,6 +45,11 @@ const navItems: NavItem[] = [
     to: "/admin/events",
     label: "Events",
     icon: <CalendarRange className="size-4" />,
+  },
+  {
+    to: "/admin/check-in",
+    label: "Check-in",
+    icon: <ScanLine className="size-4" />,
   },
   {
     to: "/admin/categories",
@@ -63,6 +74,10 @@ function getSectionLabel(pathname: string, isSuperAdmin: boolean) {
     return "Events";
   }
 
+  if (matchesPath(pathname, "/admin/check-in")) {
+    return "Check-in";
+  }
+
   if (isSuperAdmin && matchesPath(pathname, "/admin/categories")) {
     return "Categories";
   }
@@ -81,6 +96,15 @@ function getSectionMeta(pathname: string, isSuperAdmin: boolean) {
       description: "Find events faster and jump directly into setup work.",
       actionLabel: "Open Dashboard",
       actionTo: "/admin" as const,
+    };
+  }
+
+  if (matchesPath(pathname, "/admin/check-in")) {
+    return {
+      kicker: "Door",
+      description: "Scan ticket QR codes and validate entry in seconds.",
+      actionLabel: "Open Events",
+      actionTo: "/admin/events" as const,
     };
   }
 

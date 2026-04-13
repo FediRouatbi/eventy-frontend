@@ -14,7 +14,6 @@ import {
   createStripeCheckoutSession,
 } from "#/lib/api/orders";
 import { queryClient } from "#/lib/query-client";
-import { rememberStripeCheckoutSession } from "#/lib/orders-history";
 
 export const Route = createFileRoute("/checkout/success")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -76,7 +75,6 @@ function CheckoutSuccessPage() {
     setIsStartingPayment(true);
     try {
       const session = await createStripeCheckoutSession(orderId, token);
-      rememberStripeCheckoutSession(session.session_id);
       window.location.assign(session.checkout_url);
     } catch (error) {
       toast.error("Unable to start payment", {

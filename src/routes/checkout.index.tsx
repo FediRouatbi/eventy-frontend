@@ -24,7 +24,6 @@ import {
   useSavedTickets,
 } from "#/lib/cart";
 import { DEFAULT_CURRENCY_CODE } from "#/lib/currency";
-import { rememberStripeCheckoutSession } from "#/lib/orders-history";
 
 export const Route = createFileRoute("/checkout/")({
   validateSearch: (search: unknown) => {
@@ -172,7 +171,6 @@ function CheckoutPage() {
             "Complete payment in the new page, then you'll be returned here.",
         });
         const session = await createStripeCheckoutSession(order.id, order.token);
-        rememberStripeCheckoutSession(session.session_id);
         window.location.assign(session.checkout_url);
       } catch (error) {
         toast.error("Unable to start payment", {
