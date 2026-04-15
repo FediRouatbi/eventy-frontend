@@ -89,8 +89,8 @@ export default function Header() {
   });
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/70 bg-background/80 px-4 backdrop-blur-xl">
-      <div className="border-b border-border/50 bg-card/45">
+    <header className="sticky top-0 z-50 border-b border-border/70 bg-background/72 px-4 backdrop-blur-2xl">
+      <div className="border-b border-border/55 bg-card/52">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 py-2 text-xs text-muted-foreground">
           <div className="flex flex-wrap items-center gap-3">
             <span className="inline-flex items-center gap-2">
@@ -105,11 +105,11 @@ export default function Header() {
         </div>
       </div>
 
-      <nav className="mx-auto grid max-w-7xl gap-3 py-3 sm:py-4 lg:grid-cols-[auto_1fr_auto] lg:items-center">
+      <nav className="mx-auto grid max-w-7xl gap-3 py-3.5 sm:py-4.5 lg:grid-cols-[auto_1fr_auto] lg:items-center">
         <h2 className="m-0 text-base font-semibold tracking-tight">
           <Link
             to="/"
-            className="inline-flex items-center gap-3 rounded-full border border-border/70 bg-card/90 px-3 py-2 text-sm text-foreground no-underline shadow-[0_18px_40px_-24px_color-mix(in_oklab,var(--foreground)_30%,transparent)] transition-all hover:-translate-y-0.5 hover:bg-card sm:px-4"
+            className="inline-flex items-center gap-3 rounded-full border border-border/70 bg-card/92 px-3 py-2 text-sm text-foreground no-underline shadow-md transition-all hover:-translate-y-0.5 hover:bg-card sm:px-4"
           >
             <span className="flex size-9 items-center justify-center rounded-full bg-gradient-to-br from-primary via-primary to-accent text-xs font-black tracking-[0.2em] text-primary-foreground shadow-sm">
               E
@@ -125,13 +125,13 @@ export default function Header() {
           </Link>
         </h2>
 
-        <div className="order-3 flex w-full flex-wrap items-center gap-2 rounded-[1.75rem] border border-border/70 bg-card/75 p-1 lg:order-2 lg:w-fit lg:justify-self-center">
+          <div className="order-3 flex w-full flex-wrap items-center gap-2 rounded-[1.75rem] border border-border/70 bg-card/82 p-1.5 shadow-xs lg:order-2 lg:w-fit lg:justify-self-center">
           <Link
             to="/"
             className="inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold text-muted-foreground no-underline transition-colors hover:text-foreground"
             activeProps={{
-              className:
-                "inline-flex items-center rounded-full bg-background px-4 py-2 text-sm font-semibold text-foreground no-underline shadow-sm",
+                  className:
+                    "inline-flex items-center rounded-full bg-background px-4 py-2 text-sm font-semibold text-foreground no-underline shadow-xs",
             }}
           >
             Home
@@ -140,8 +140,8 @@ export default function Header() {
             to="/events"
             className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-muted-foreground no-underline transition-colors hover:text-foreground"
             activeProps={{
-              className:
-                "inline-flex items-center gap-2 rounded-full bg-background px-4 py-2 text-sm font-semibold text-foreground no-underline shadow-sm",
+                  className:
+                    "inline-flex items-center gap-2 rounded-full bg-background px-4 py-2 text-sm font-semibold text-foreground no-underline shadow-xs",
             }}
           >
             <CalendarDays className="size-4" />

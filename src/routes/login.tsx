@@ -1,5 +1,6 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { AlertCircle, LoaderCircle, ShieldCheck } from "lucide-react";
 import { Badge } from "#/components/ui/badge";
 import { Button } from "#/components/ui/button";
@@ -26,25 +27,27 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const loginMutation = useMutation({
+    mutationFn: async (payload: { email: string; password: string }) => {
+      const authResult = await login(payload);
+      saveAuthSession(authResult);
+      await getMe();
+      return authResult;
+    },
+    onSuccess: () => {
+      navigate({ to: "/admin" });
+    },
+    onError: (error) => {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Unable to sign in",
+      );
+    },
+  });
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage("");
-    setIsSubmitting(true);
-
-    try {
-      const authResult = await login({ email, password });
-      saveAuthSession(authResult);
-      await getMe();
-      navigate({ to: "/admin" });
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Unable to sign in",
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+    loginMutation.mutate({ email, password });
   }
 
   return (
@@ -93,7 +96,7 @@ function LoginPage() {
         </CardContent>
       </Card>
 
-      <Card className="rounded-[2rem] bg-card/95">
+      <Card className="app-surface rounded-[2rem]">
         <CardHeader>
           <Badge variant="secondary" className="w-fit rounded-full">
             Authentication
@@ -144,9 +147,9 @@ function LoginPage() {
               type="submit"
               size="lg"
               className="w-full rounded-full"
-              disabled={isSubmitting}
+              disabled={loginMutation.isPending}
             >
-              {isSubmitting ? (
+              {loginMutation.isPending ? (
                 <>
                   <LoaderCircle className="size-4 animate-spin" />
                   Signing in

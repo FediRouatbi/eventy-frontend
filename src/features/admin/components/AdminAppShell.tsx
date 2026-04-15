@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { type ReactNode } from "react";
 import {
   Building2,
   CalendarRange,
@@ -140,18 +141,26 @@ export function AdminAppShell({ session }: { session: AuthSession }) {
   const isSuperAdmin = isSuperAdminSession(session);
   const sectionLabel = getSectionLabel(location.pathname, isSuperAdmin);
   const sectionMeta = getSectionMeta(location.pathname, isSuperAdmin);
-  const [isSigningOut, setIsSigningOut] = useState(false);
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      await logout(session.refresh_token);
+    },
+    onSettled: () => {
+      clearAuthSession();
+      navigate({ to: '/login' });
+    },
+  });
 
   const visibleItems = navItems.filter((item) =>
     item.superAdminOnly ? isSuperAdmin : true,
   );
 
   return (
-    <main className="h-[100svh] overflow-hidden bg-[radial-gradient(circle_at_top_right,rgba(231,138,72,0.12),transparent_24%),linear-gradient(180deg,rgba(255,248,240,0.98),rgba(255,255,255,0.94))] dark:bg-[radial-gradient(circle_at_top_right,rgba(231,138,72,0.10),transparent_24%),linear-gradient(180deg,rgba(45,42,38,0.98),rgba(33,31,28,0.96))]">
+    <main className="h-[100svh] overflow-hidden bg-[radial-gradient(circle_at_top_right,rgba(231,138,72,0.14),transparent_24%),linear-gradient(180deg,rgba(255,248,240,0.98),rgba(255,255,255,0.94))] dark:bg-[radial-gradient(circle_at_top_right,rgba(231,138,72,0.14),transparent_24%),linear-gradient(180deg,rgba(45,42,38,0.98),rgba(33,31,28,0.96))]">
       <div className="grid h-full lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="h-[100svh] overflow-hidden border-b border-border/70 bg-card/88 backdrop-blur-xl lg:border-b-0 lg:border-r lg:bg-card/82">
+        <aside className="h-[100svh] overflow-hidden border-b border-border/70 bg-card/84 backdrop-blur-2xl lg:border-b-0 lg:border-r lg:bg-card/80">
           <div className="flex h-full flex-col px-4 py-4">
-            <div className="rounded-2xl border border-border/70 bg-background/88 p-3 shadow-sm">
+            <div className="app-surface rounded-2xl p-3">
               <div className="flex items-start gap-3">
                 <div className="flex size-11 items-center justify-center rounded-xl bg-primary/12 text-primary">
                   <Command className="size-5" />
@@ -183,8 +192,8 @@ export function AdminAppShell({ session }: { session: AuthSession }) {
                       className={cn(
                         'h-11 w-full justify-start rounded-xl px-3',
                         matchesPath(location.pathname, item.to)
-                          ? 'bg-background text-foreground shadow-sm hover:bg-background/90 dark:bg-background/70 dark:hover:bg-background/80'
-                          : 'text-muted-foreground hover:bg-background/65 hover:text-foreground dark:hover:bg-background/45',
+                          ? 'bg-background text-foreground shadow-xs hover:bg-background/90 dark:bg-background/70 dark:hover:bg-background/80'
+                          : 'text-muted-foreground hover:bg-background/75 hover:text-foreground dark:hover:bg-background/45',
                       )}
                     >
                       <Link to={item.to}>
@@ -197,7 +206,7 @@ export function AdminAppShell({ session }: { session: AuthSession }) {
               </div>
             </div>
 
-            <div className="mt-6 rounded-2xl border border-border/70 bg-background/88 p-3 shadow-sm">
+            <div className="app-surface mt-6 rounded-2xl p-3">
               <div className="flex items-center gap-3">
                 <div className="flex size-10 items-center justify-center rounded-full bg-primary/14 text-sm font-semibold text-primary">
                   {session.user.name
@@ -233,26 +242,18 @@ export function AdminAppShell({ session }: { session: AuthSession }) {
               <Button
                 variant="outline"
                 className="w-full justify-start rounded-xl"
-                disabled={isSigningOut}
-                onClick={async () => {
-                  setIsSigningOut(true);
-                  try {
-                    await logout(session.refresh_token);
-                  } catch {}
-                  clearAuthSession();
-                  navigate({ to: '/login' });
-                  setIsSigningOut(false);
-                }}
+                disabled={logoutMutation.isPending}
+                onClick={() => logoutMutation.mutate()}
               >
                 <LogOut className="size-4" />
-                {isSigningOut ? 'Signing out' : 'Logout'}
+                {logoutMutation.isPending ? 'Signing out' : 'Logout'}
               </Button>
             </div>
           </div>
         </aside>
 
         <section className="min-w-0 overflow-y-auto">
-          <div className="sticky top-0 z-30 border-b border-border/70 bg-background/82 backdrop-blur-xl">
+          <div className="sticky top-0 z-30 border-b border-border/70 bg-background/78 backdrop-blur-2xl">
             <div className="px-5 py-4 lg:px-8">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="space-y-2">

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { API_BASE_URL } from "#/lib/api/client";
+import { apiClient, createApiClient } from "#/lib/api/client";
 import type { components } from "#/lib/api/generated/schema";
 
 export type AuthResult = components["schemas"]["AuthResult"];
@@ -12,11 +12,6 @@ export type AuthSession = {
   refresh_token: string;
   refresh_expires_at: string;
   user: Profile;
-};
-
-type RequestOptions = Omit<RequestInit, "headers"> & {
-  headers?: HeadersInit;
-  retryOnUnauthorized?: boolean;
 };
 
 const AUTH_STORAGE_KEY = "eventy.auth.session";
@@ -139,30 +134,17 @@ export function clearAuthSession() {
 }
 
 async function refreshSessionRequest(refreshToken: string) {
-  const response = await fetch(`${API_BASE_URL}/v1/auth/refresh`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+  const { data, error } = await apiClient.POST("/v1/auth/refresh", {
+    body: {
       refresh_token: refreshToken,
-    }),
+    },
   });
 
-  const payload = (await response.json().catch(() => null)) as
-    | AuthResult
-    | { message?: string; error?: string }
-    | null;
-
-  if (!response.ok || !payload || !("access_token" in payload)) {
-    throw new Error(
-      payload && typeof payload === "object" && "message" in payload
-        ? payload.message || "Failed to refresh session"
-        : "Failed to refresh session",
-    );
+  if (error || !data || !("access_token" in data)) {
+    throw new Error(error?.message ?? "Failed to refresh session");
   }
 
-  return normalizeSession(payload);
+  return normalizeSession(data);
 }
 
 export async function refreshAuthSession() {
@@ -206,67 +188,26 @@ export async function getValidAccessToken() {
   return refreshedSession?.access_token ?? null;
 }
 
-export async function authenticatedFetch(
-  input: string,
-  init: RequestOptions = {},
-) {
-  const { retryOnUnauthorized = true, headers, ...rest } = init;
+export async function loadCurrentUser() {
   const accessToken = await getValidAccessToken();
-
   if (!accessToken) {
     clearAuthSession();
     throw new Error("invalid or expired token");
   }
 
-  const response = await fetch(input, {
-    ...rest,
-    headers: {
-      ...headers,
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
+  const client = createApiClient(accessToken);
+  const { data, error, response } = await client.GET("/v1/users/me");
 
-  if (response.status !== 401 || !retryOnUnauthorized) {
-    return response;
-  }
-
-  const refreshedSession = await refreshAuthSession();
-
-  if (!refreshedSession?.access_token) {
-    clearAuthSession();
-    return response;
-  }
-
-  return fetch(input, {
-    ...rest,
-    headers: {
-      ...headers,
-      Authorization: `Bearer ${refreshedSession.access_token}`,
-    },
-  });
-}
-
-export async function loadCurrentUser() {
-  const response = await authenticatedFetch(`${API_BASE_URL}/v1/users/me`);
-  const payload = (await response.json().catch(() => null)) as
-    | Profile
-    | { message?: string; error?: string }
-    | null;
-
-  if (!response.ok || !payload || !("email" in payload)) {
+  if (error || !data || !("email" in data)) {
     if (response.status === 401) {
       clearAuthSession();
     }
 
-    throw new Error(
-      payload && typeof payload === "object" && "message" in payload
-        ? payload.message || "Failed to load current user"
-        : "Failed to load current user",
-    );
+    throw new Error(error?.message ?? "Failed to load current user");
   }
 
-  updateAuthSessionUser(payload);
-  return payload;
+  updateAuthSessionUser(data);
+  return data;
 }
 
 export async function hydrateAuthSession() {

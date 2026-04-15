@@ -1,4 +1,5 @@
 import { Outlet, createFileRoute, useLocation, useNavigate } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -96,18 +97,15 @@ function getInvalidFieldClass(hasError?: boolean) {
 function AdminOrganizersPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const search = Route.useSearch();
   const session = useAuthSession();
   const [workspaces, setWorkspaces] = useState<OrganizerWorkspace[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingWorkspace, setEditingWorkspace] =
     useState<OrganizerWorkspace | null>(null);
   const [workspacePendingDelete, setWorkspacePendingDelete] =
     useState<OrganizerWorkspace | null>(null);
-  const [isUpdatingOrganizer, setIsUpdatingOrganizer] = useState(false);
   const [deletingOrganizerId, setDeletingOrganizerId] = useState<string | null>(
     null,
   );
@@ -131,6 +129,45 @@ function AdminOrganizersPage() {
   const organizerFormErrors = organizerForm.formState.errors;
   const editOrganizerFormErrors = editOrganizerForm.formState.errors;
   const query = search.q;
+  const isSuperAdmin = Boolean(session && isSuperAdminSession(session));
+  const {
+    data: loadedWorkspaces,
+    isLoading,
+    error: organizersError,
+  } = useQuery({
+    queryKey: ["admin-organizers", session?.access_token],
+    enabled: Boolean(session?.access_token) && isSuperAdmin,
+    queryFn: () => buildOrganizerWorkspaces(session!.access_token),
+    refetchOnWindowFocus: true,
+  });
+  const loadError =
+    organizersError instanceof Error ? organizersError.message : "";
+  const createOrganizerMutation = useMutation({
+    mutationFn: (values: OrganizerFormValues) =>
+      createOrganizerAdmin(session!.access_token, {
+        organizer_name: values.organizer_name.trim(),
+        organizer_slug: values.organizer_slug.trim(),
+        admin_name: values.admin_name.trim(),
+        admin_email: values.admin_email.trim(),
+        admin_password: values.admin_password,
+      }),
+  });
+  const updateOrganizerMutation = useMutation({
+    mutationFn: (input: {
+      organizerId: string;
+      values: EditOrganizerFormValues;
+    }) =>
+      updateOrganizer(session!.access_token, input.organizerId, {
+        organizer_name: input.values.organizer_name.trim(),
+        organizer_slug: input.values.organizer_slug.trim(),
+      }),
+  });
+  const deleteOrganizerMutation = useMutation({
+    mutationFn: (organizerId: string) =>
+      deleteOrganizer(session!.access_token, organizerId),
+  });
+  const isSubmitting = createOrganizerMutation.isPending;
+  const isUpdatingOrganizer = updateOrganizerMutation.isPending;
 
   const filteredWorkspaces = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -172,39 +209,23 @@ function AdminOrganizersPage() {
       return;
     }
 
-    async function loadOrganizers() {
-      setIsLoading(true);
-      setLoadError("");
+  }, [navigate, session]);
 
-      try {
-        setWorkspaces(await buildOrganizerWorkspaces(session.access_token));
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Failed to load organizers";
-        setLoadError(message);
-        toast.error("Failed to load organizers", { description: message });
-      } finally {
-        setIsLoading(false);
-      }
+  useEffect(() => {
+    if (!loadedWorkspaces) {
+      return;
     }
 
-    loadOrganizers();
-  }, [navigate, session]);
+    setWorkspaces(loadedWorkspaces);
+  }, [loadedWorkspaces]);
 
   async function handleCreateOrganizer(values: OrganizerFormValues) {
     if (!session) {
       return;
     }
 
-    setIsSubmitting(true);
     try {
-      const result = await createOrganizerAdmin(session.access_token, {
-        organizer_name: values.organizer_name.trim(),
-        organizer_slug: values.organizer_slug.trim(),
-        admin_name: values.admin_name.trim(),
-        admin_email: values.admin_email.trim(),
-        admin_password: values.admin_password,
-      });
+      const result = await createOrganizerMutation.mutateAsync(values);
 
       const nextWorkspaces = sortByLabel(
         [
@@ -226,6 +247,9 @@ function AdminOrganizersPage() {
       setWorkspaces(nextWorkspaces);
       setIsSheetOpen(false);
       organizerForm.reset();
+      await queryClient.invalidateQueries({
+        queryKey: ["admin-organizers", session.access_token],
+      });
       toast.success("Organizer created", {
         description: `${result.organizer.name} is ready for its first event.`,
       });
@@ -238,8 +262,6 @@ function AdminOrganizersPage() {
         description:
           error instanceof Error ? error.message : "Please try again.",
       });
-    } finally {
-      setIsSubmitting(false);
     }
   }
 
@@ -264,16 +286,11 @@ function AdminOrganizersPage() {
       return;
     }
 
-    setIsUpdatingOrganizer(true);
     try {
-      const updatedOrganizer = await updateOrganizer(
-        session.access_token,
-        String(editingWorkspace.organizer.id),
-        {
-          organizer_name: values.organizer_name.trim(),
-          organizer_slug: values.organizer_slug.trim(),
-        },
-      );
+      const updatedOrganizer = await updateOrganizerMutation.mutateAsync({
+        organizerId: String(editingWorkspace.organizer.id),
+        values,
+      });
 
       setWorkspaces((currentWorkspaces) =>
         sortByLabel(
@@ -295,14 +312,15 @@ function AdminOrganizersPage() {
       toast.success("Organizer updated", {
         description: `${updatedOrganizer.name} has been updated.`,
       });
+      await queryClient.invalidateQueries({
+        queryKey: ["admin-organizers", session.access_token],
+      });
       closeEditSheet();
     } catch (error) {
       toast.error("Failed to update organizer", {
         description:
           error instanceof Error ? error.message : "Please try again.",
       });
-    } finally {
-      setIsUpdatingOrganizer(false);
     }
   }
 
@@ -315,7 +333,7 @@ function AdminOrganizersPage() {
     setDeletingOrganizerId(pendingId);
 
     try {
-      await deleteOrganizer(session.access_token, pendingId);
+      await deleteOrganizerMutation.mutateAsync(pendingId);
       setWorkspaces((currentWorkspaces) =>
         currentWorkspaces.filter(
           (workspace) => String(workspace.organizer.id) !== pendingId,
@@ -323,6 +341,9 @@ function AdminOrganizersPage() {
       );
       toast.success("Organizer deleted", {
         description: `${workspacePendingDelete.organizer.name} and all related events were removed.`,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["admin-organizers", session.access_token],
       });
       setWorkspacePendingDelete(null);
     } catch (error) {

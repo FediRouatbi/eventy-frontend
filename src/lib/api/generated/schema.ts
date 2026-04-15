@@ -46,6 +46,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admins/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get admin payments
+         * @description Organizer admins and super admins can fetch payment analytics and latest payment records scoped to their access.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Maximum number of latest payment records to return (default 20, max 100). */
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Admin payments analytics */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminPayments"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                401: components["responses"]["ErrorResponse"];
+                403: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admins/organizers": {
         parameters: {
             query?: never;
@@ -1631,6 +1677,279 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List my checkout orders
+         * @description Returns the most recent checkout orders for the authenticated user (matched by email).
+         */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Checkout orders */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CheckoutOrderSummary"][];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                401: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orders/{orderID}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get my checkout order
+         * @description Returns a checkout order by id for the authenticated user (matched by email).
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    orderID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Checkout order */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CheckoutOrderSummary"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                401: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orders/stripe-sessions/{stripeSessionID}/checkout-order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get my checkout order by Stripe session id
+         * @description Returns a checkout order by Stripe checkout session id for the authenticated user (matched by email).
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    stripeSessionID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Checkout order */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CheckoutOrderSummary"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                401: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List my tickets
+         * @description Returns tickets for the authenticated user (matched by email).
+         */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Tickets */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Ticket"][];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                401: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tickets/code/{ticketCode}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get ticket by code
+         * @description Organizer admins and super admins can look up a ticket by its code.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    ticketCode: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Ticket */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Ticket"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                401: components["responses"]["ErrorResponse"];
+                403: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tickets/check-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check in ticket
+         * @description Marks a paid ticket as checked-in by code. Optionally validate event_id and session_id to enforce gate/session scope.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CheckInTicketInput"];
+                };
+            };
+            responses: {
+                /** @description Check-in result */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CheckInResult"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                401: components["responses"]["ErrorResponse"];
+                403: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                409: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/users/me": {
         parameters: {
             query?: never;
@@ -2197,6 +2516,73 @@ export interface components {
             /** @example 7 */
             session_count: number;
         };
+        AdminPayments: {
+            /** @example super_admin */
+            scope: string;
+            summary: components["schemas"]["AdminPaymentsSummary"];
+            trends: components["schemas"]["AdminPaymentTrend"][];
+            items: components["schemas"]["AdminPaymentItem"][];
+        };
+        AdminPaymentsSummary: {
+            /**
+             * Format: float
+             * @example 19450.5
+             */
+            gross: number;
+            /** @example 42 */
+            paid_orders: number;
+            /** @example 7 */
+            pending_orders: number;
+            /** @example 3 */
+            failed_or_expired_orders: number;
+            /**
+             * Format: float
+             * @example 463.11
+             */
+            average_order_value: number;
+            /** @example EUR */
+            currency: string;
+        };
+        AdminPaymentTrend: {
+            /** @example 2026-04-15 */
+            day: string;
+            /**
+             * Format: float
+             * @example 1250
+             */
+            gross: number;
+            /** @example 4 */
+            paid_orders: number;
+        };
+        AdminPaymentItem: {
+            /** Format: uuid */
+            id: string;
+            order_number: string;
+            /** @example paid */
+            status: string;
+            /**
+             * Format: float
+             * @example 299.99
+             */
+            amount: number;
+            /** @example EUR */
+            currency: string;
+            customer_name: string;
+            /** Format: email */
+            customer_email: string;
+            /** Format: uuid */
+            event_id?: string | null;
+            event_title?: string;
+            /** Format: uuid */
+            organizer_id?: string | null;
+            organizer_name?: string;
+            /** Format: date-time */
+            paid_at?: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
         OrganizerAdmin: {
             /** Format: uuid */
             id: string;
@@ -2380,6 +2766,91 @@ export interface components {
         };
         ErrorResponse: {
             message: string;
+        };
+        CheckoutOrderItem: {
+            /** Format: uuid */
+            ticket_type_id: string;
+            ticket_type_name: string;
+            quantity: number;
+            unit_price: number;
+            currency: string;
+            /** Format: uuid */
+            event_id: string;
+            event_title: string;
+            /** Format: uuid */
+            session_id: string;
+            /** Format: date-time */
+            session_starts_at: string;
+            /** Format: date-time */
+            session_ends_at: string;
+        };
+        CheckoutOrderSummary: {
+            /** Format: uuid */
+            id: string;
+            order_number: string;
+            status: string;
+            customer_name: string;
+            /** Format: email */
+            customer_email: string;
+            currency: string;
+            subtotal: number;
+            /** Format: date-time */
+            expires_at: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            stripe_checkout_session_id?: string;
+            /** Format: date-time */
+            paid_at?: string | null;
+            /** Format: date-time */
+            tickets_emailed_at?: string | null;
+            items: components["schemas"]["CheckoutOrderItem"][];
+        };
+        Ticket: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            /** Format: uuid */
+            order_id: string;
+            order_number: string;
+            order_status: string;
+            customer_name: string;
+            /** Format: email */
+            customer_email: string;
+            /** Format: uuid */
+            ticket_type_id: string;
+            ticket_type_name: string;
+            /** Format: uuid */
+            event_id: string;
+            event_title: string;
+            /** Format: uuid */
+            session_id: string;
+            /** Format: date-time */
+            session_starts_at: string;
+            /** Format: date-time */
+            session_ends_at: string;
+            /** Format: date-time */
+            paid_at?: string | null;
+            /** Format: date-time */
+            checked_in_at?: string | null;
+            /** Format: uuid */
+            checked_in_by_user_id?: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        CheckInTicketInput: {
+            code: string;
+            /** Format: uuid */
+            event_id?: string;
+            /** Format: uuid */
+            session_id?: string;
+        };
+        CheckInResult: {
+            ticket: components["schemas"]["Ticket"];
+            already_checked: boolean;
         };
     };
     responses: {

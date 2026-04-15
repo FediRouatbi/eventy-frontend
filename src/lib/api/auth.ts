@@ -1,44 +1,66 @@
-import { API_BASE_URL, apiClient, createApiClient } from "#/lib/api/client";
-import {
-  authenticatedFetch,
-  loadCurrentUser,
-  refreshAuthSession,
-} from "#/lib/auth";
+import { apiClient, createApiClient } from "#/lib/api/client";
+import { loadCurrentUser, refreshAuthSession } from "#/lib/auth";
 import type { components } from "#/lib/api/generated/schema";
 
-type ApiErrorPayload = {
+type ApiErrorShape = {
   message?: string;
+  error?: string;
 };
 
-async function parseApiResponse<T>(response: Response, fallbackMessage: string) {
-  const payload = (await response.json().catch(() => null)) as
-    | T
-    | ApiErrorPayload
-    | null;
-
-  if (!response.ok) {
-    throw new Error(
-      (payload as ApiErrorPayload | null)?.message ?? fallbackMessage,
-    );
+function getErrorMessage(payload: unknown, fallback: string) {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "message" in payload &&
+    typeof (payload as { message?: unknown }).message === "string"
+  ) {
+    return (payload as { message: string }).message;
   }
 
-  if (!payload) {
-    throw new Error(fallbackMessage);
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "error" in payload &&
+    typeof (payload as { error?: unknown }).error === "string"
+  ) {
+    return (payload as { error: string }).error;
   }
 
-  return payload as T;
+  return fallback;
+}
+
+function unwrapData<T>(
+  payload: {
+    data?: T;
+    error?: ApiErrorShape;
+  },
+  fallback: string,
+) {
+  if (payload.error || !payload.data) {
+    throw new Error(getErrorMessage(payload.error, fallback));
+  }
+
+  return payload.data;
+}
+
+function assertSuccess(
+  payload: {
+    error?: ApiErrorShape;
+  },
+  fallback: string,
+) {
+  if (payload.error) {
+    throw new Error(getErrorMessage(payload.error, fallback));
+  }
 }
 
 export async function login(input: components["schemas"]["LoginInput"]) {
-  const { data, error } = await apiClient.POST("/v1/auth/login", {
-    body: input,
-  });
-
-  if (error || !data) {
-    throw new Error(error?.message ?? "Failed to sign in");
-  }
-
-  return data;
+  return unwrapData(
+    await apiClient.POST("/v1/auth/login", {
+      body: input,
+    }),
+    "Failed to sign in",
+  );
 }
 
 export async function refreshSession() {
@@ -67,153 +89,116 @@ export async function getMe(accessToken?: string) {
 }
 
 export async function logout(refreshToken: string) {
-  const response = await authenticatedFetch(`${API_BASE_URL}/v1/auth/logout`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      refresh_token: refreshToken,
+  assertSuccess(
+    await apiClient.POST("/v1/auth/logout", {
+      body: {
+        refresh_token: refreshToken,
+      },
     }),
-  });
-
-  if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as {
-      message?: string;
-      error?: string;
-    } | null;
-
-    throw new Error(payload?.message ?? "Failed to sign out");
-  }
+    "Failed to sign out",
+  );
 }
 
-export async function register(input: { name: string; email: string; password: string }) {
-  const response = await fetch(`${API_BASE_URL}/v1/auth/register`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(input),
-  });
-
-  return parseApiResponse<{ message: string }>(
-    response,
+export async function register(input: components["schemas"]["RegisterInput"]) {
+  return unwrapData(
+    await apiClient.POST("/v1/auth/register", {
+      body: input,
+    }),
     "Failed to create account",
   );
 }
 
-export async function resendRegisterOtp(input: { email: string }) {
-  const response = await fetch(`${API_BASE_URL}/v1/auth/register/resend-otp`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(input),
-  });
-
-  return parseApiResponse<{ message: string }>(
-    response,
+export async function resendRegisterOtp(
+  input: components["schemas"]["ResendRegisterOTPInput"],
+) {
+  return unwrapData(
+    await apiClient.POST("/v1/auth/register/resend-otp", {
+      body: input,
+    }),
     "Failed to resend OTP",
   );
 }
 
-export async function verifyRegisterOtp(input: { email: string; otp: string }) {
-  const response = await fetch(`${API_BASE_URL}/v1/auth/register/verify`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(input),
-  });
-
-  return parseApiResponse<components["schemas"]["AuthResult"]>(
-    response,
+export async function verifyRegisterOtp(
+  input: components["schemas"]["VerifyRegisterOTPInput"],
+) {
+  return unwrapData(
+    await apiClient.POST("/v1/auth/register/verify", {
+      body: input,
+    }),
     "Failed to verify OTP",
   );
 }
 
-export async function forgotPassword(input: { email: string }) {
-  const response = await fetch(`${API_BASE_URL}/v1/auth/forgot-password`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(input),
-  });
-
-  return parseApiResponse<{ message: string }>(
-    response,
+export async function forgotPassword(
+  input: components["schemas"]["ForgotPasswordInput"],
+) {
+  return unwrapData(
+    await apiClient.POST("/v1/auth/forgot-password", {
+      body: input,
+    }),
     "Failed to start password reset",
   );
 }
 
-export async function resetPassword(input: {
-  email: string;
-  token: string;
-  new_password: string;
-}) {
-  const response = await fetch(`${API_BASE_URL}/v1/auth/reset-password`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(input),
-  });
-
-  return parseApiResponse<{ message: string }>(
-    response,
+export async function resetPassword(
+  input: components["schemas"]["ResetPasswordInput"],
+) {
+  return unwrapData(
+    await apiClient.POST("/v1/auth/reset-password", {
+      body: input,
+    }),
     "Failed to reset password",
   );
 }
 
-export async function changePassword(input: {
+export async function changePassword(
+  accessToken: string,
+  input: {
   current_password: string;
   new_password: string;
-}) {
-  const response = await authenticatedFetch(`${API_BASE_URL}/v1/auth/change-password`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(input),
-  });
-
-  return parseApiResponse<{ message: string }>(
-    response,
+},
+) {
+  const client = createApiClient(accessToken);
+  return unwrapData(
+    await client.PATCH("/v1/auth/change-password", {
+      body: {
+        current_password: input.current_password,
+        new_password: input.new_password,
+      },
+    }),
     "Failed to update password",
   );
 }
 
-export async function updateProfile(input: { name: string; email: string }) {
-  const response = await authenticatedFetch(`${API_BASE_URL}/v1/users/me`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(input),
-  });
-
-  return parseApiResponse<components["schemas"]["Profile"]>(
-    response,
+export async function updateProfile(
+  accessToken: string,
+  input: components["schemas"]["UpdateProfileInput"],
+) {
+  const client = createApiClient(accessToken);
+  return unwrapData(
+    await client.PATCH("/v1/users/me", {
+      body: input,
+    }),
     "Failed to update profile",
   );
 }
 
-export async function deleteProfile(input: { current_password: string }) {
-  const response = await authenticatedFetch(`${API_BASE_URL}/v1/users/me`, {
-    method: "DELETE",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(input),
-  });
+export async function deleteProfile(
+  accessToken: string,
+  input: { current_password: string },
+) {
+  const client = createApiClient(accessToken) as {
+    DELETE: (
+      path: "/v1/users/me",
+      init?: { body?: { current_password: string } },
+    ) => Promise<{ data?: unknown; error?: ApiErrorShape }>;
+  };
 
-  if (response.status === 204) {
-    return;
-  }
-
-  await parseApiResponse<{ message: string }>(
-    response,
+  assertSuccess(
+    await client.DELETE("/v1/users/me", {
+      body: input,
+    }),
     "Failed to delete account",
   );
 }

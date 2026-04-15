@@ -90,7 +90,7 @@ export default function NotFoundPage() {
                     <span className="block text-sm text-muted-foreground">
                       {isAdminPath
                         ? "Return to organizer tools."
-                        : "See what’s live right now."}
+                        : "See what's live right now."}
                     </span>
                   </span>
                 </span>

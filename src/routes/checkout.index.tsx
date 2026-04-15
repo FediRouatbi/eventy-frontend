@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useMutation } from "@tanstack/react-query";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -55,8 +56,21 @@ function CheckoutPage() {
   const countdown = useReservationCountdown(cart.expires_at);
   const [customerName, setCustomerName] = useState(session?.user.name ?? "");
   const [customerEmail, setCustomerEmail] = useState(session?.user.email ?? "");
-  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const createOrderMutation = useMutation({
+    mutationFn: (payload: {
+      reservation_id: string;
+      reservation_token: string;
+      customer_name: string;
+      customer_email: string;
+    }) => createCheckoutOrder(payload),
+  });
+  const createPaymentSessionMutation = useMutation({
+    mutationFn: (payload: { orderId: string; orderToken: string }) =>
+      createStripeCheckoutSession(payload.orderId, payload.orderToken),
+  });
+  const isCreatingOrder =
+    createOrderMutation.isPending || createPaymentSessionMutation.isPending;
   const sessionGroups = useMemo(() => {
     const grouped = new Map<
       string,
@@ -152,9 +166,8 @@ function CheckoutPage() {
       return;
     }
 
-    setIsCreatingOrder(true);
     try {
-      const order = await createCheckoutOrder({
+      const order = await createOrderMutation.mutateAsync({
         reservation_id: cart.reservation_id,
         reservation_token: cart.reservation_token,
         customer_name: customerName,
@@ -170,8 +183,11 @@ function CheckoutPage() {
           description:
             "Complete payment in the new page, then you'll be returned here.",
         });
-        const session = await createStripeCheckoutSession(order.id, order.token);
-        window.location.assign(session.checkout_url);
+        const stripeSession = await createPaymentSessionMutation.mutateAsync({
+          orderId: order.id,
+          orderToken: order.token,
+        });
+        window.location.assign(stripeSession.checkout_url);
       } catch (error) {
         toast.error("Unable to start payment", {
           description: error instanceof Error ? error.message : "Please try again.",
@@ -192,8 +208,6 @@ function CheckoutPage() {
             ? error.message
             : "Please try again.",
       });
-    } finally {
-      setIsCreatingOrder(false);
     }
   }
 

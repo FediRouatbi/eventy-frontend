@@ -77,7 +77,7 @@ function AdminCheckInPage() {
         ? "Already checked in"
         : "Checked in";
       toast.success(statusLabel, {
-        description: `${result.ticket.ticket_type_name} • ${result.ticket.event_title}`,
+        description: `${result.ticket.ticket_type_name} - ${result.ticket.event_title}`,
       });
     },
     onError: (error) => {
@@ -222,7 +222,7 @@ function AdminCheckInPage() {
                   <p className="mt-2 text-sm text-muted-foreground">
                     {barcodeSupported
                       ? "Point your camera at the QR code."
-                      : "QR scanning not supported here — use manual entry."}
+                      : "QR scanning not supported here - use manual entry."}
                   </p>
                 </div>
                 <Button
@@ -298,7 +298,7 @@ function AdminCheckInPage() {
                   {lastResult.already_checked ? "Already checked in" : "Entry confirmed"}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {lastResult.ticket.ticket_type_name} • {lastResult.ticket.event_title}
+                  {lastResult.ticket.ticket_type_name} - {lastResult.ticket.event_title}
                 </p>
               </div>
               <Badge variant="outline" className="rounded-full">

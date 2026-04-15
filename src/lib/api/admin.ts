@@ -188,6 +188,11 @@ export type AdminOverview = {
   }>;
 };
 
+export type AdminPaymentsResponse = components["schemas"]["AdminPayments"];
+export type AdminPaymentItem = components["schemas"]["AdminPaymentItem"];
+export type AdminPaymentTrendPoint = components["schemas"]["AdminPaymentTrend"];
+export type AdminPaymentStatus = AdminPaymentItem["status"];
+
 function normalizeAdminOverview(overview: AdminOverview): AdminOverview {
   return {
     ...overview,
@@ -315,6 +320,23 @@ export async function getAdminOverview(accessToken: string) {
 
   return normalizeAdminOverview(
     unwrapData(await client.GET("/v1/admins/overview"), "Failed to load overview"),
+  );
+}
+
+export async function getAdminPayments(
+  accessToken: string,
+  options?: { limit?: number },
+) {
+  const client = getClient(accessToken);
+  return unwrapData(
+    await client.GET("/v1/admins/payments", {
+      params: {
+        query: {
+          limit: options?.limit ?? 20,
+        },
+      },
+    }),
+    "Failed to load payments",
   );
 }
 

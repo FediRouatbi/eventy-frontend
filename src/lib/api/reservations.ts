@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "./client";
+import { apiClient } from "./client";
 
 export type ReservationItemPayload = {
   ticket_type_id: string;
@@ -35,38 +35,57 @@ export type UpsertReservationInput = {
 
 type ApiErrorPayload = {
   message?: string;
+  error?: string;
 };
 
-async function parseApiResponse<T>(response: Response, fallbackMessage: string) {
-  const payload = (await response.json().catch(() => null)) as
-    | T
-    | ApiErrorPayload
-    | null;
-
-  if (!response.ok) {
-    throw new Error(
-      (payload as ApiErrorPayload | null)?.message ?? fallbackMessage,
-    );
+function getErrorMessage(payload: unknown, fallback: string) {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "message" in payload &&
+    typeof (payload as { message?: unknown }).message === "string"
+  ) {
+    return (payload as { message: string }).message;
   }
 
-  if (!payload) {
-    throw new Error(fallbackMessage);
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "error" in payload &&
+    typeof (payload as { error?: unknown }).error === "string"
+  ) {
+    return (payload as { error: string }).error;
   }
 
-  return payload as T;
+  return fallback;
+}
+
+function unwrapData<T>(
+  payload: {
+    data?: T;
+    error?: ApiErrorPayload;
+  },
+  fallback: string,
+) {
+  if (payload.error || !payload.data) {
+    throw new Error(getErrorMessage(payload.error, fallback));
+  }
+
+  return payload.data;
 }
 
 export async function upsertReservation(input: UpsertReservationInput) {
-  const response = await fetch(`${API_BASE_URL}/v1/public/reservations`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(input),
-  });
+  const client = apiClient as {
+    POST: (
+      path: "/v1/public/reservations",
+      init?: { body: UpsertReservationInput },
+    ) => Promise<{ data?: ReservationPayload; error?: ApiErrorPayload }>;
+  };
 
-  return parseApiResponse<ReservationPayload>(
-    response,
+  return unwrapData(
+    await client.POST("/v1/public/reservations", {
+      body: input,
+    }),
     "Failed to update reservation",
   );
 }
@@ -75,12 +94,29 @@ export async function getReservation(
   reservationID: string,
   reservationToken: string,
 ) {
-  const response = await fetch(
-    `${API_BASE_URL}/v1/public/reservations/${reservationID}?token=${encodeURIComponent(reservationToken)}`,
-  );
+  const client = apiClient as {
+    GET: (
+      path: "/v1/public/reservations/{reservationID}",
+      init?: {
+        params: {
+          path: { reservationID: string };
+          query: { token: string };
+        };
+      },
+    ) => Promise<{ data?: ReservationPayload; error?: ApiErrorPayload }>;
+  };
 
-  return parseApiResponse<ReservationPayload>(
-    response,
+  return unwrapData(
+    await client.GET("/v1/public/reservations/{reservationID}", {
+      params: {
+        path: {
+          reservationID,
+        },
+        query: {
+          token: reservationToken,
+        },
+      },
+    }),
     "Failed to load reservation",
   );
 }
@@ -89,17 +125,30 @@ export async function deleteReservation(
   reservationID: string,
   reservationToken: string,
 ) {
-  const response = await fetch(
-    `${API_BASE_URL}/v1/public/reservations/${reservationID}?token=${encodeURIComponent(reservationToken)}`,
-    {
-      method: "DELETE",
-    },
-  );
+  const client = apiClient as {
+    DELETE: (
+      path: "/v1/public/reservations/{reservationID}",
+      init?: {
+        params: {
+          path: { reservationID: string };
+          query: { token: string };
+        };
+      },
+    ) => Promise<{ error?: ApiErrorPayload; response: Response }>;
+  };
 
-  if (!response.ok && response.status !== 404) {
-    const payload = (await response.json().catch(() => null)) as
-      | ApiErrorPayload
-      | null;
-    throw new Error(payload?.message ?? "Failed to clear reservation");
+  const payload = await client.DELETE("/v1/public/reservations/{reservationID}", {
+    params: {
+      path: {
+        reservationID,
+      },
+      query: {
+        token: reservationToken,
+      },
+    },
+  });
+
+  if (payload.error && payload.response.status !== 404) {
+    throw new Error(getErrorMessage(payload.error, "Failed to clear reservation"));
   }
 }

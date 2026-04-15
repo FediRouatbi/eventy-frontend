@@ -1,78 +1,71 @@
-import { API_BASE_URL } from "./client";
+import type { components } from "./generated/schema";
+import { createApiClient } from "./client";
 
-export type Ticket = {
-  id: string;
-  code: string;
-  order_id: string;
-  order_number: string;
-  order_status: string;
-  customer_name: string;
-  customer_email: string;
-  ticket_type_id: string;
-  ticket_type_name: string;
-  event_id: string;
-  event_title: string;
-  session_id: string;
-  session_starts_at: string;
-  session_ends_at: string;
-  paid_at?: string | null;
-  checked_in_at?: string | null;
-  checked_in_by_user_id?: string | null;
-  created_at: string;
-  updated_at: string;
-};
+export type Ticket = components["schemas"]["Ticket"];
 
-export type CheckInResult = {
-  ticket: Ticket;
-  already_checked: boolean;
-};
+export type CheckInResult = components["schemas"]["CheckInResult"];
 
 type ApiErrorPayload = {
   message?: string;
+  error?: string;
 };
 
-async function parseApiResponse<T>(response: Response, fallbackMessage: string) {
-  const payload = (await response.json().catch(() => null)) as
-    | T
-    | ApiErrorPayload
-    | null;
-
-  if (!response.ok) {
-    throw new Error(
-      (payload as ApiErrorPayload | null)?.message ?? fallbackMessage,
-    );
+function getErrorMessage(payload: unknown, fallback: string) {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "message" in payload &&
+    typeof (payload as { message?: unknown }).message === "string"
+  ) {
+    return (payload as { message: string }).message;
   }
 
-  if (!payload) {
-    throw new Error(fallbackMessage);
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "error" in payload &&
+    typeof (payload as { error?: unknown }).error === "string"
+  ) {
+    return (payload as { error: string }).error;
   }
 
-  return payload as T;
+  return fallback;
+}
+
+function unwrapData<T>(
+  payload: {
+    data?: T;
+    error?: ApiErrorPayload;
+  },
+  fallback: string,
+) {
+  if (payload.error || !payload.data) {
+    throw new Error(getErrorMessage(payload.error, fallback));
+  }
+
+  return payload.data;
 }
 
 export async function listMyTickets(accessToken: string, limit = 50) {
-  const response = await fetch(
-    `${API_BASE_URL}/v1/tickets?limit=${encodeURIComponent(String(limit))}`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
+  const client = createApiClient(accessToken);
+  return unwrapData(
+    await client.GET("/v1/tickets", {
+      params: {
+        query: {
+          limit,
+        },
       },
-    },
+    }),
+    "Failed to load tickets",
   );
-
-  return parseApiResponse<Ticket[]>(response, "Failed to load tickets");
 }
 
 export async function checkInTicket(accessToken: string, code: string) {
-  const response = await fetch(`${API_BASE_URL}/v1/tickets/check-in`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify({ code }),
-  });
-
-  return parseApiResponse<CheckInResult>(response, "Failed to check in ticket");
+  const client = createApiClient(accessToken);
+  return unwrapData(
+    await client.POST("/v1/tickets/check-in", {
+      body: { code },
+    }),
+    "Failed to check in ticket",
+  );
 }
-

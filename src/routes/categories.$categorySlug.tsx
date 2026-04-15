@@ -1,9 +1,9 @@
 import { Link, createFileRoute, notFound } from "@tanstack/react-router";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { MapPin, MoveRight } from "lucide-react";
 import { Button } from "#/components/ui/button";
 import { SessionChips } from "#/features/events/components/SessionChips";
 import {
-  formatDateLabel,
   formatDateRangeLabel,
   formatPriceLabel,
   formatTimeRangeLabel,
@@ -12,12 +12,15 @@ import {
   normalizePublicSessions,
   getPrimarySession,
 } from "#/features/events/display";
-import { getPublicCategoryBySlug } from "#/lib/api/public";
+import { publicCategoryDetailQueryOptions } from "#/lib/api/public";
+import { queryClient } from "#/lib/query-client";
 
 export const Route = createFileRoute("/categories/$categorySlug")({
   loader: async ({ params }) => {
     try {
-      return await getPublicCategoryBySlug(params.categorySlug);
+      await queryClient.ensureQueryData(
+        publicCategoryDetailQueryOptions(params.categorySlug),
+      );
     } catch {
       throw notFound();
     }
@@ -26,7 +29,10 @@ export const Route = createFileRoute("/categories/$categorySlug")({
 });
 
 function CategoryPage() {
-  const category = Route.useLoaderData();
+  const { categorySlug } = Route.useParams();
+  const { data: category } = useSuspenseQuery(
+    publicCategoryDetailQueryOptions(categorySlug),
+  );
   const events = category.events ?? [];
   const theme = getCategoryTheme(category.slug);
 

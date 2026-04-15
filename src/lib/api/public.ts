@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { API_BASE_URL, apiClient } from "./client";
+import { apiClient } from "./client";
 import type { components } from "./generated/schema";
 
 const LIVE_REFETCH_INTERVAL_MS = 10_000;
@@ -104,15 +104,26 @@ export async function getPublicEventById(eventID: string) {
 }
 
 export async function getPublicCategoryBySlug(categorySlug: string) {
-  const response = await fetch(
-    `${API_BASE_URL}/v1/public/categories/${encodeURIComponent(categorySlug)}`,
-  );
+  const client = apiClient as {
+    GET: (
+      path: "/v1/public/categories/{categorySlug}",
+      init?: { params: { path: { categorySlug: string } } },
+    ) => Promise<{ data?: ApiPublicCategoryDetail; error?: { message?: string } }>;
+  };
 
-  if (!response.ok) {
-    throw new Error("Failed to load public category");
+  const { data, error } = await client.GET("/v1/public/categories/{categorySlug}", {
+    params: {
+      path: {
+        categorySlug,
+      },
+    },
+  });
+
+  if (error || !data) {
+    throw new Error(error?.message ?? "Failed to load public category");
   }
 
-  const payload = (await response.json()) as ApiPublicCategoryDetail;
+  const payload = data;
 
   return {
     ...payload,

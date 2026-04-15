@@ -1,4 +1,5 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -181,19 +182,11 @@ function AdminEventWorkspacePage() {
   const { eventId } = Route.useParams();
   const search = Route.useSearch();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const session = useAuthSession();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [eventDetail, setEventDetail] = useState<EventDetail | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
-  const hasLoadedRef = useRef(false);
   const [eventSheetOpen, setEventSheetOpen] = useState(false);
   const [sessionSheetOpen, setSessionSheetOpen] = useState(false);
   const [ticketSheetOpen, setTicketSheetOpen] = useState(false);
-  const [isEventSubmitting, setIsEventSubmitting] = useState(false);
-  const [isSessionSubmitting, setIsSessionSubmitting] = useState(false);
-  const [isTicketSubmitting, setIsTicketSubmitting] = useState(false);
-  const [isEventDeleting, setIsEventDeleting] = useState(false);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(
     null,
   );
@@ -238,90 +231,100 @@ function AdminEventWorkspacePage() {
   const eventFormErrors = eventForm.formState.errors;
   const sessionFormErrors = sessionForm.formState.errors;
   const ticketFormErrors = ticketForm.formState.errors;
+  const isPollingAllowed = !eventSheetOpen && !sessionSheetOpen && !ticketSheetOpen;
+
+  const categoriesQuery = useQuery({
+    queryKey: ["admin-categories", session?.access_token],
+    enabled: Boolean(session?.access_token),
+    queryFn: () => listAdminCategories(session!.access_token),
+    refetchOnWindowFocus: true,
+    refetchInterval: isPollingAllowed ? 5000 : false,
+  });
+  const eventDetailQuery = useQuery({
+    queryKey: ["admin-event-detail", session?.access_token, eventId],
+    enabled: Boolean(session?.access_token),
+    queryFn: () => getAdminEventById(session!.access_token, eventId),
+    refetchOnWindowFocus: true,
+    refetchInterval: isPollingAllowed ? 5000 : false,
+  });
+  const categories = categoriesQuery.data ?? [];
+  const eventDetail = eventDetailQuery.data ?? null;
+  const isLoading = categoriesQuery.isLoading || eventDetailQuery.isLoading;
+  const loadError = categoriesQuery.error instanceof Error
+    ? categoriesQuery.error.message
+    : eventDetailQuery.error instanceof Error
+      ? eventDetailQuery.error.message
+      : "";
+  const updateEventMutation = useMutation({
+    mutationFn: (payload: UpdateAdminEventInput) =>
+      updateAdminEvent(session!.access_token, eventId, payload),
+  });
+  const upsertSessionMutation = useMutation({
+    mutationFn: (input: {
+      sessionId?: string;
+      payload: {
+        starts_at: string;
+        ends_at: string;
+        status: "scheduled" | "completed" | "cancelled";
+      };
+    }) =>
+      input.sessionId
+        ? updateEventSession(session!.access_token, eventId, input.sessionId, input.payload)
+        : createEventSession(session!.access_token, eventId, input.payload),
+  });
+  const upsertTicketTypeMutation = useMutation({
+    mutationFn: (input: {
+      sessionId: string;
+      ticketTypeId?: string;
+      payload: {
+        name: string;
+        description: string;
+        price: number;
+        quantity: number;
+        max_per_order: number;
+      };
+    }) =>
+      input.ticketTypeId
+        ? updateTicketType(
+            session!.access_token,
+            eventId,
+            input.sessionId,
+            input.ticketTypeId,
+            input.payload,
+          )
+        : createTicketType(
+            session!.access_token,
+            eventId,
+            input.sessionId,
+            input.payload,
+          ),
+  });
+  const deleteEventMutation = useMutation({
+    mutationFn: () => deleteAdminEvent(session!.access_token, eventId),
+  });
+  const deleteSessionMutation = useMutation({
+    mutationFn: (sessionId: string) =>
+      deleteEventSession(session!.access_token, eventId, sessionId),
+  });
+  const deleteTicketTypeMutation = useMutation({
+    mutationFn: (input: { sessionId: string; ticketTypeId: string }) =>
+      deleteAdminTicketType(
+        session!.access_token,
+        eventId,
+        input.sessionId,
+        input.ticketTypeId,
+      ),
+  });
+  const isEventSubmitting = updateEventMutation.isPending;
+  const isSessionSubmitting = upsertSessionMutation.isPending;
+  const isTicketSubmitting = upsertTicketTypeMutation.isPending;
+  const isEventDeleting = deleteEventMutation.isPending;
 
   useEffect(() => {
     if (!session) {
       navigate({ to: "/login" });
-      return;
     }
-
-    let isMounted = true;
-    async function loadWorkspace(isPolling = false) {
-      const isInitialLoad = !hasLoadedRef.current;
-      const shouldBlockUi = isInitialLoad && !isPolling;
-      const allowPolling =
-        !eventSheetOpen && !sessionSheetOpen && !ticketSheetOpen;
-
-      if (isPolling && !allowPolling) {
-        return;
-      }
-
-      if (shouldBlockUi) {
-        setIsLoading(true);
-        setLoadError("");
-      }
-
-      try {
-        const [categoryData, eventData] = await Promise.all([
-          listAdminCategories(session.access_token),
-          getAdminEventById(session.access_token, eventId),
-        ]);
-
-        if (!isMounted) {
-          return;
-        }
-
-        hasLoadedRef.current = true;
-        setCategories(categoryData);
-        setEventDetail(eventData);
-      } catch (error) {
-        if (!isMounted) {
-          return;
-        }
-
-        if (!isPolling && !hasLoadedRef.current) {
-          setLoadError(
-            error instanceof Error
-              ? error.message
-              : "Failed to load event workspace",
-          );
-        }
-      } finally {
-        if (!isMounted) {
-          return;
-        }
-
-        if (shouldBlockUi) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    loadWorkspace();
-
-    const poll = window.setInterval(() => {
-      void loadWorkspace(true);
-    }, 5000);
-
-    const handleFocus = () => {
-      void loadWorkspace(true);
-    };
-
-    window.addEventListener("focus", handleFocus);
-
-    return () => {
-      isMounted = false;
-      window.clearInterval(poll);
-      window.removeEventListener("focus", handleFocus);
-    };
-  }, [
-    eventId,
-    eventSheetOpen,
-    navigate,
-    session,
-    sessionSheetOpen,
-    ticketSheetOpen,
-  ]);
+  }, [navigate, session]);
 
   const currentCategory = useMemo(
     () => categories.find((item) => item.id === eventDetail?.category_id),
@@ -375,17 +378,6 @@ function AdminEventWorkspacePage() {
     return null;
   }
 
-  async function reloadEventDetail() {
-    try {
-      const latest = await getAdminEventById(session.access_token, eventId);
-      setEventDetail(latest);
-    } catch (error) {
-      setLoadError(
-        error instanceof Error ? error.message : "Failed to reload event",
-      );
-    }
-  }
-
   function openCreateSessionSheet() {
     setEditingSession(null);
     sessionForm.reset({
@@ -436,8 +428,6 @@ function AdminEventWorkspacePage() {
   }
 
   async function handleUpdateEvent(values: EventFormValues) {
-    setIsEventSubmitting(true);
-
     const payload: UpdateAdminEventInput = {
       category_id: values.category_id,
       title: values.title.trim(),
@@ -457,9 +447,11 @@ function AdminEventWorkspacePage() {
     };
 
     try {
-      await updateAdminEvent(session.access_token, eventId, payload);
+      await updateEventMutation.mutateAsync(payload);
       setEventSheetOpen(false);
-      await reloadEventDetail();
+      await queryClient.invalidateQueries({
+        queryKey: ["admin-event-detail", session.access_token, eventId],
+      });
       toast.success("Event updated", {
         description: `${payload.title} is saved and ready for publishing changes.`,
       });
@@ -470,8 +462,6 @@ function AdminEventWorkspacePage() {
             ? error.message
             : "Please review the form and try again.",
       });
-    } finally {
-      setIsEventSubmitting(false);
     }
   }
 
@@ -508,8 +498,6 @@ function AdminEventWorkspacePage() {
       return;
     }
 
-    setIsSessionSubmitting(true);
-
     const payload = {
       starts_at: new Date(values.starts_at).toISOString(),
       ends_at: new Date(values.ends_at).toISOString(),
@@ -518,19 +506,15 @@ function AdminEventWorkspacePage() {
 
     try {
       const isEditing = Boolean(editingSession);
-      if (editingSession) {
-        await updateEventSession(
-          session.access_token,
-          eventId,
-          String(editingSession.id),
-          payload,
-        );
-      } else {
-        await createEventSession(session.access_token, eventId, payload);
-      }
+      await upsertSessionMutation.mutateAsync({
+        sessionId: editingSession ? String(editingSession.id) : undefined,
+        payload,
+      });
 
       setSessionSheetOpen(false);
-      await reloadEventDetail();
+      await queryClient.invalidateQueries({
+        queryKey: ["admin-event-detail", session.access_token, eventId],
+      });
       toast.success(isEditing ? "Session updated" : "Session created", {
         description: isEditing
           ? "The session schedule changes have been saved."
@@ -543,8 +527,6 @@ function AdminEventWorkspacePage() {
             ? error.message
             : "Please review the session details and try again.",
       });
-    } finally {
-      setIsSessionSubmitting(false);
     }
   }
 
@@ -556,8 +538,6 @@ function AdminEventWorkspacePage() {
       return;
     }
 
-    setIsTicketSubmitting(true);
-
     const payload = {
       name: values.name.trim(),
       description: values.description.trim(),
@@ -568,25 +548,16 @@ function AdminEventWorkspacePage() {
 
     try {
       const isEditing = Boolean(editingTicketType);
-      if (editingTicketType) {
-        await updateTicketType(
-          session.access_token,
-          eventId,
-          String(ticketContextSession.id),
-          String(editingTicketType.id),
-          payload,
-        );
-      } else {
-        await createTicketType(
-          session.access_token,
-          eventId,
-          String(ticketContextSession.id),
-          payload,
-        );
-      }
+      await upsertTicketTypeMutation.mutateAsync({
+        sessionId: String(ticketContextSession.id),
+        ticketTypeId: editingTicketType ? String(editingTicketType.id) : undefined,
+        payload,
+      });
 
       setTicketSheetOpen(false);
-      await reloadEventDetail();
+      await queryClient.invalidateQueries({
+        queryKey: ["admin-event-detail", session.access_token, eventId],
+      });
       toast.success(isEditing ? "Ticket type updated" : "Ticket type created", {
         description: isEditing
           ? "Pricing and inventory changes have been saved."
@@ -599,8 +570,6 @@ function AdminEventWorkspacePage() {
             ? error.message
             : "Please review the ticket details and try again.",
       });
-    } finally {
-      setIsTicketSubmitting(false);
     }
   }
 
@@ -609,10 +578,8 @@ function AdminEventWorkspacePage() {
       return;
     }
 
-    setIsEventDeleting(true);
-
     try {
-      await deleteAdminEvent(session.access_token, eventId);
+      await deleteEventMutation.mutateAsync();
       toast.success("Event deleted", {
         description: `${eventDetail.title} and its sessions were removed.`,
       });
@@ -622,8 +589,6 @@ function AdminEventWorkspacePage() {
         description:
           error instanceof Error ? error.message : "Please try again.",
       });
-    } finally {
-      setIsEventDeleting(false);
     }
   }
 
@@ -635,12 +600,10 @@ function AdminEventWorkspacePage() {
     setDeletingSessionId(String(sessionDetail.id));
 
     try {
-      await deleteEventSession(
-        session.access_token,
-        eventId,
-        String(sessionDetail.id),
-      );
-      await reloadEventDetail();
+      await deleteSessionMutation.mutateAsync(String(sessionDetail.id));
+      await queryClient.invalidateQueries({
+        queryKey: ["admin-event-detail", session.access_token, eventId],
+      });
       toast.success("Session deleted", {
         description: `The ${formatDateTime(sessionDetail.starts_at)} session was removed.`,
       });
@@ -666,13 +629,13 @@ function AdminEventWorkspacePage() {
     setDeletingTicketTypeId(String(ticketType.id));
 
     try {
-      await deleteAdminTicketType(
-        session.access_token,
-        eventId,
-        String(sessionDetail.id),
-        String(ticketType.id),
-      );
-      await reloadEventDetail();
+      await deleteTicketTypeMutation.mutateAsync({
+        sessionId: String(sessionDetail.id),
+        ticketTypeId: String(ticketType.id),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["admin-event-detail", session.access_token, eventId],
+      });
       toast.success("Ticket type deleted", {
         description: `${ticketType.name} was removed from this session.`,
       });
@@ -757,7 +720,7 @@ function AdminEventWorkspacePage() {
                       {eventDetail.title}
                     </CardTitle>
                     <CardDescription className="text-base">
-                      {currentCategory?.name ?? "Unknown category"} •{" "}
+                      {currentCategory?.name ?? "Unknown category"} -{" "}
                       {eventDetail.slug}
                     </CardDescription>
                   </div>

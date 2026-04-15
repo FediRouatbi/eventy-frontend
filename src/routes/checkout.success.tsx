@@ -1,6 +1,6 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, notFound } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { toast } from "sonner";
 
 import { Button } from "#/components/ui/button";
@@ -42,7 +42,10 @@ function CheckoutSuccessPage() {
   const { data: order } = useSuspenseQuery(
     checkoutOrderQueryOptions(orderId, token),
   );
-  const [isStartingPayment, setIsStartingPayment] = useState(false);
+  const startPaymentMutation = useMutation({
+    mutationFn: () => createStripeCheckoutSession(orderId, token),
+  });
+  const isStartingPayment = startPaymentMutation.isPending;
 
   useEffect(() => {
     if (order.status === "paid") {
@@ -72,16 +75,14 @@ function CheckoutSuccessPage() {
   }, [order.status, orderId, token]);
 
   async function handlePayNow() {
-    setIsStartingPayment(true);
     try {
-      const session = await createStripeCheckoutSession(orderId, token);
-      window.location.assign(session.checkout_url);
+      const stripeSession = await startPaymentMutation.mutateAsync();
+      window.location.assign(stripeSession.checkout_url);
     } catch (error) {
       toast.error("Unable to start payment", {
         description:
           error instanceof Error ? error.message : "Please try again.",
       });
-      setIsStartingPayment(false);
     }
   }
 

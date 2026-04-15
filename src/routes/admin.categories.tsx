@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { LoaderCircle, Pencil, Plus, Search, Tag, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -112,12 +113,9 @@ function getInvalidFieldClass(hasError?: boolean) {
 
 function AdminCategoriesPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const search = Route.useSearch();
   const session = useAuthSession();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [categoryPendingDelete, setCategoryPendingDelete] = useState<Category | null>(null);
@@ -134,6 +132,45 @@ function AdminCategoriesPage() {
   });
   const categoryFormErrors = categoryForm.formState.errors;
   const query = search.q;
+  const isSuperAdmin = Boolean(session && isSuperAdminSession(session));
+  const categoriesQueryKey = ["admin-categories", session?.access_token];
+  const {
+    data: categories = [],
+    isLoading,
+    error: categoriesError,
+  } = useQuery({
+    queryKey: categoriesQueryKey,
+    enabled: Boolean(session?.access_token) && isSuperAdmin,
+    queryFn: () => listAdminCategories(session!.access_token),
+    refetchOnWindowFocus: true,
+  });
+  const createCategoryMutation = useMutation({
+    mutationFn: (payload: {
+      name: string;
+      slug: string;
+      description?: string;
+      image_url?: string;
+    }) => createCategory(session!.access_token, payload),
+  });
+  const updateCategoryMutation = useMutation({
+    mutationFn: (input: {
+      categoryId: string;
+      payload: {
+        name: string;
+        slug: string;
+        description?: string;
+        image_url?: string;
+      };
+    }) => updateCategory(session!.access_token, input.categoryId, input.payload),
+  });
+  const deleteCategoryMutation = useMutation({
+    mutationFn: (categoryId: string) =>
+      deleteCategory(session!.access_token, categoryId),
+  });
+  const isSubmitting =
+    createCategoryMutation.isPending || updateCategoryMutation.isPending;
+  const loadError =
+    categoriesError instanceof Error ? categoriesError.message : "";
 
   useEffect(() => {
     if (!session) {
@@ -142,28 +179,7 @@ function AdminCategoriesPage() {
 
     if (!isSuperAdminSession(session)) {
       navigate({ to: "/admin" });
-      return;
     }
-
-    async function loadCategories() {
-      setIsLoading(true);
-      setLoadError("");
-
-      try {
-        setCategories(await listAdminCategories(session.access_token));
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Failed to load categories";
-        setLoadError(message);
-        toast.error("Failed to load categories", {
-          description: message,
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    loadCategories();
   }, [navigate, session]);
 
   const filteredCategories = useMemo(() => {
@@ -220,8 +236,6 @@ function AdminCategoriesPage() {
       return;
     }
 
-    setIsSubmitting(true);
-
     try {
       const payload = {
         name: values.name.trim(),
@@ -231,13 +245,11 @@ function AdminCategoriesPage() {
       };
 
       if (editingCategory) {
-        const updated = await updateCategory(
-          session.access_token,
-          String(editingCategory.id),
+        const updated = await updateCategoryMutation.mutateAsync({
+          categoryId: String(editingCategory.id),
           payload,
-        );
-
-        setCategories((current) =>
+        });
+        queryClient.setQueryData<Category[]>(categoriesQueryKey, (current = []) =>
           [...current]
             .map((category) =>
               String(category.id) === String(updated.id) ? updated : category,
@@ -248,8 +260,8 @@ function AdminCategoriesPage() {
           description: `${updated.name} is saved and ready for discovery.`,
         });
       } else {
-        const created = await createCategory(session.access_token, payload);
-        setCategories((current) =>
+        const created = await createCategoryMutation.mutateAsync(payload);
+        queryClient.setQueryData<Category[]>(categoriesQueryKey, (current = []) =>
           [created, ...current].sort((left, right) =>
             left.name.localeCompare(right.name),
           ),
@@ -270,8 +282,6 @@ function AdminCategoriesPage() {
             error instanceof Error ? error.message : "Please try again.",
         },
       );
-    } finally {
-      setIsSubmitting(false);
     }
   }
 
@@ -283,8 +293,8 @@ function AdminCategoriesPage() {
     setDeletingCategoryId(String(categoryPendingDelete.id));
 
     try {
-      await deleteCategory(session.access_token, String(categoryPendingDelete.id));
-      setCategories((current) =>
+      await deleteCategoryMutation.mutateAsync(String(categoryPendingDelete.id));
+      queryClient.setQueryData<Category[]>(categoriesQueryKey, (current = []) =>
         current.filter(
           (category) => String(category.id) !== String(categoryPendingDelete.id),
         ),

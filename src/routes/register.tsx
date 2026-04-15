@@ -228,7 +228,7 @@ function RegisterPage() {
         </CardContent>
       </Card>
 
-      <Card className="rounded-[2rem] bg-card/95">
+      <Card className="app-surface rounded-[2rem]">
         <CardHeader>
           <Badge variant="secondary" className="w-fit rounded-full">
             {isVerifyStep ? "Verify account" : "Create account"}

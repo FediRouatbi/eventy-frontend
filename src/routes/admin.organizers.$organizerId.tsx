@@ -1,4 +1,5 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -111,22 +112,18 @@ function getInvalidFieldClass(hasError?: boolean) {
 
 function AdminOrganizerDetailPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { organizerId } = Route.useParams();
   const session = useAuthSession();
   const [workspace, setWorkspace] = useState<OrganizerWorkspace | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
-  const [isUpdatingOrganizer, setIsUpdatingOrganizer] = useState(false);
   const [isAdminSheetOpen, setIsAdminSheetOpen] = useState(false);
-  const [isUpdatingAdmin, setIsUpdatingAdmin] = useState(false);
   const [workspacePendingDelete, setWorkspacePendingDelete] =
     useState<OrganizerWorkspace | null>(null);
   const [adminPendingDelete, setAdminPendingDelete] = useState(false);
   const [deletingOrganizerId, setDeletingOrganizerId] = useState<string | null>(
     null,
   );
-  const [isDeletingAdmin, setIsDeletingAdmin] = useState(false);
   const editOrganizerForm = useForm<EditOrganizerFormValues>({
     defaultValues: {
       organizer_name: "",
@@ -141,6 +138,45 @@ function AdminOrganizerDetailPage() {
     },
   });
   const editAdminFormErrors = editAdminForm.formState.errors;
+  const isSuperAdmin = Boolean(session && isSuperAdminSession(session));
+  const {
+    data: loadedWorkspace,
+    isLoading,
+    error: workspaceError,
+  } = useQuery({
+    queryKey: ["admin-organizer-detail", session?.access_token, organizerId],
+    enabled: Boolean(session?.access_token) && isSuperAdmin,
+    queryFn: () =>
+      getOrganizerWorkspaceDetail(session!.access_token, organizerId),
+    refetchOnWindowFocus: true,
+  });
+  const loadError =
+    workspaceError instanceof Error ? workspaceError.message : "";
+  const updateOrganizerMutation = useMutation({
+    mutationFn: (values: EditOrganizerFormValues) =>
+      updateOrganizer(session!.access_token, String(workspace!.organizer.id), {
+        organizer_name: values.organizer_name.trim(),
+        organizer_slug: values.organizer_slug.trim(),
+      }),
+  });
+  const updateOrganizerAdminMutation = useMutation({
+    mutationFn: (values: EditAdminFormValues) =>
+      updateOrganizerAdmin(session!.access_token, String(workspace!.organizer.id), {
+        admin_name: values.admin_name.trim(),
+        admin_email: values.admin_email.trim(),
+      }),
+  });
+  const deleteOrganizerMutation = useMutation({
+    mutationFn: (targetOrganizerId: string) =>
+      deleteOrganizer(session!.access_token, targetOrganizerId),
+  });
+  const deleteOrganizerAdminMutation = useMutation({
+    mutationFn: () =>
+      deleteOrganizerAdmin(session!.access_token, String(workspace!.organizer.id)),
+  });
+  const isUpdatingOrganizer = updateOrganizerMutation.isPending;
+  const isUpdatingAdmin = updateOrganizerAdminMutation.isPending;
+  const isDeletingAdmin = deleteOrganizerAdminMutation.isPending;
 
   useEffect(() => {
     if (!session) {
@@ -152,26 +188,15 @@ function AdminOrganizerDetailPage() {
       return;
     }
 
-    async function loadOrganizer() {
-      setIsLoading(true);
-      setLoadError("");
+  }, [navigate, organizerId, session]);
 
-      try {
-        setWorkspace(
-          await getOrganizerWorkspaceDetail(session.access_token, organizerId),
-        );
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Failed to load organizer";
-        setLoadError(message);
-        toast.error("Failed to load organizer", { description: message });
-      } finally {
-        setIsLoading(false);
-      }
+  useEffect(() => {
+    if (!loadedWorkspace) {
+      return;
     }
 
-    loadOrganizer();
-  }, [navigate, organizerId, session]);
+    setWorkspace(loadedWorkspace);
+  }, [loadedWorkspace]);
 
   async function handleDeleteOrganizer() {
     if (!session || !workspacePendingDelete) {
@@ -182,11 +207,14 @@ function AdminOrganizerDetailPage() {
     setDeletingOrganizerId(pendingId);
 
     try {
-      await deleteOrganizer(session.access_token, pendingId);
+      await deleteOrganizerMutation.mutateAsync(pendingId);
       toast.success("Organizer deleted", {
         description: `${workspacePendingDelete.organizer.name} and all related events were removed.`,
       });
       setWorkspacePendingDelete(null);
+      await queryClient.invalidateQueries({
+        queryKey: ["admin-organizers", session.access_token],
+      });
       navigate({ to: "/admin/organizers" });
     } catch (error) {
       toast.error("Failed to delete organizer", {
@@ -215,16 +243,8 @@ function AdminOrganizerDetailPage() {
       return;
     }
 
-    setIsUpdatingOrganizer(true);
     try {
-      const updatedOrganizer = await updateOrganizer(
-        session.access_token,
-        String(workspace.organizer.id),
-        {
-          organizer_name: values.organizer_name.trim(),
-          organizer_slug: values.organizer_slug.trim(),
-        },
-      );
+      const updatedOrganizer = await updateOrganizerMutation.mutateAsync(values);
 
       setWorkspace((currentWorkspace) =>
         currentWorkspace
@@ -238,6 +258,12 @@ function AdminOrganizerDetailPage() {
           : currentWorkspace,
       );
       setIsEditSheetOpen(false);
+      await queryClient.invalidateQueries({
+        queryKey: ["admin-organizers", session.access_token],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["admin-organizer-detail", session.access_token, organizerId],
+      });
       toast.success("Organizer updated", {
         description: `${updatedOrganizer.name} has been updated.`,
       });
@@ -246,8 +272,6 @@ function AdminOrganizerDetailPage() {
         description:
           error instanceof Error ? error.message : "Please try again.",
       });
-    } finally {
-      setIsUpdatingOrganizer(false);
     }
   }
 
@@ -268,16 +292,8 @@ function AdminOrganizerDetailPage() {
       return;
     }
 
-    setIsUpdatingAdmin(true);
     try {
-      const updatedAdmin = await updateOrganizerAdmin(
-        session.access_token,
-        String(workspace.organizer.id),
-        {
-          admin_name: values.admin_name.trim(),
-          admin_email: values.admin_email.trim(),
-        },
-      );
+      const updatedAdmin = await updateOrganizerAdminMutation.mutateAsync(values);
 
       setWorkspace((currentWorkspace) =>
         currentWorkspace
@@ -292,6 +308,12 @@ function AdminOrganizerDetailPage() {
           : currentWorkspace,
       );
       setIsAdminSheetOpen(false);
+      await queryClient.invalidateQueries({
+        queryKey: ["admin-organizers", session.access_token],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["admin-organizer-detail", session.access_token, organizerId],
+      });
       toast.success("Admin updated", {
         description: `${updatedAdmin.name} has been updated.`,
       });
@@ -300,8 +322,6 @@ function AdminOrganizerDetailPage() {
         description:
           error instanceof Error ? error.message : "Please try again.",
       });
-    } finally {
-      setIsUpdatingAdmin(false);
     }
   }
 
@@ -310,12 +330,8 @@ function AdminOrganizerDetailPage() {
       return;
     }
 
-    setIsDeletingAdmin(true);
     try {
-      await deleteOrganizerAdmin(
-        session.access_token,
-        String(workspace.organizer.id),
-      );
+      await deleteOrganizerAdminMutation.mutateAsync();
       setWorkspace((currentWorkspace) =>
         currentWorkspace
           ? {
@@ -330,6 +346,12 @@ function AdminOrganizerDetailPage() {
           : currentWorkspace,
       );
       setAdminPendingDelete(false);
+      await queryClient.invalidateQueries({
+        queryKey: ["admin-organizers", session.access_token],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["admin-organizer-detail", session.access_token, organizerId],
+      });
       toast.success("Admin deleted", {
         description: "The organizer no longer has a linked admin account.",
       });
@@ -338,8 +360,6 @@ function AdminOrganizerDetailPage() {
         description:
           error instanceof Error ? error.message : "Please try again.",
       });
-    } finally {
-      setIsDeletingAdmin(false);
     }
   }
 

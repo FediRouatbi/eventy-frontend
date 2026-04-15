@@ -29,7 +29,7 @@ function SheetOverlay({
     <Dialog.Overlay
       data-slot="sheet-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-black/38 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+        "fixed inset-0 z-50 bg-black/45 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         className,
       )}
       {...props}
@@ -38,7 +38,7 @@ function SheetOverlay({
 }
 
 const sheetVariants = cva(
-  "fixed z-50 flex h-full max-h-screen flex-col gap-4 overflow-hidden border-border bg-background p-6 shadow-xl transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out duration-200 [&>form]:flex-1 [&>form]:min-h-0 [&>form]:overflow-hidden [&>form>div:first-of-type]:-mx-6 [&>form>div:first-of-type]:flex-1 [&>form>div:first-of-type]:min-h-0 [&>form>div:first-of-type]:overflow-y-auto [&>form>div:first-of-type]:px-6",
+  "fixed z-50 flex h-full max-h-screen flex-col gap-4 overflow-hidden border-border/70 bg-background/96 p-6 shadow-2xl backdrop-blur-sm transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out duration-200 [&>form]:flex-1 [&>form]:min-h-0 [&>form]:overflow-hidden [&>form>div:first-of-type]:-mx-6 [&>form>div:first-of-type]:flex-1 [&>form>div:first-of-type]:min-h-0 [&>form>div:first-of-type]:overflow-y-auto [&>form>div:first-of-type]:px-6",
   {
     variants: {
       side: {

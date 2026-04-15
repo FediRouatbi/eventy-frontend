@@ -85,7 +85,7 @@ function OrdersPage() {
   if (!session || (isAccountInitialLoading && !hasAnyOrders)) {
     return (
       <main className="mx-auto max-w-5xl px-4 pb-12 pt-10 sm:pt-14">
-        <section className="rounded-[2rem] border border-border/70 bg-card/90 p-6 shadow-sm sm:p-8">
+        <section className="app-surface rounded-[2rem] p-6 sm:p-8">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
             Orders
           </p>
@@ -104,7 +104,7 @@ function OrdersPage() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-12 pt-10 sm:pt-14">
-      <section className="rounded-[2rem] border border-border/70 bg-card/90 p-6 shadow-sm sm:p-8">
+      <section className="app-surface rounded-[2rem] p-6 sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
           Orders
         </p>
@@ -117,7 +117,7 @@ function OrdersPage() {
       </section>
 
       <section className="mt-8 space-y-4">
-        <div className="flex flex-col gap-3 rounded-[1.75rem] border border-border/70 bg-card/90 p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="app-surface flex flex-col gap-3 rounded-[1.75rem] p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Account orders
@@ -142,10 +142,7 @@ function OrdersPage() {
         </div>
 
         {apiOrders.map((order) => (
-          <article
-            key={order.id}
-            className="rounded-[1.75rem] border border-border/70 bg-card/90 p-5 shadow-sm"
-          >
+          <article key={order.id} className="app-surface rounded-[1.75rem] p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -197,8 +194,8 @@ function OrdersPage() {
                     .map(
                       (item) => `${item.quantity} x ${item.ticket_type_name}`,
                     )
-                    .join(' • ')}
-                  {order.items.length > 2 ? ' • ...' : ''}
+                    .join(' - ')}
+                  {order.items.length > 2 ? ' - ...' : ''}
                 </p>
               </div>
             </div>

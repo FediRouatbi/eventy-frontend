@@ -20,7 +20,7 @@ export function AdminPageHeader({
   className?: string;
 }) {
   return (
-    <Card className={cn("rounded-[2rem] border-border/60 bg-card/95 shadow-[0_24px_60px_-35px_rgba(15,23,42,0.45)]", className)}>
+    <Card className={cn("app-surface rounded-[2rem] border-border/60", className)}>
       <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-3">
           <Badge variant="outline" className="w-fit rounded-full">
@@ -88,7 +88,7 @@ export function AdminSectionCard({
   className?: string;
 }) {
   return (
-    <Card className={cn("rounded-[1.75rem] border-border/60 bg-card/96 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.35)]", className)}>
+    <Card className={cn("app-surface rounded-[1.75rem] border-border/60", className)}>
       <CardHeader className="gap-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -113,7 +113,7 @@ export function AdminEmptyState({
   action?: ReactNode;
 }) {
   return (
-    <Card className="rounded-[1.5rem] border-dashed border-border/70 bg-background/60 shadow-none">
+    <Card className="rounded-[1.5rem] border-dashed border-border/70 bg-background/65 shadow-none">
       <CardContent className="flex flex-col items-center gap-3 p-10 text-center">
         <div className="space-y-1">
           <p className="font-medium text-foreground">{title}</p>
@@ -154,7 +154,7 @@ export function AdminDangerZone({
   action?: ReactNode;
 }) {
   return (
-    <Card className="rounded-[1.75rem] border-destructive/25 bg-destructive/5 shadow-none">
+    <Card className="rounded-[1.75rem] border-destructive/25 bg-destructive/8 shadow-none">
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
@@ -170,7 +170,7 @@ export function AdminStickySectionNav({
   items: Array<{ id: string; label: string; active?: boolean; search?: Record<string, string | undefined> }>;
 }) {
   return (
-    <div className="sticky top-0 z-20 rounded-[1.25rem] border border-border/70 bg-background/92 p-2 backdrop-blur-md">
+    <div className="sticky top-0 z-20 rounded-[1.25rem] border border-border/70 bg-background/92 p-2 shadow-xs backdrop-blur-md">
       <div className="flex flex-wrap gap-2">
         {items.map((item) => (
           <Button

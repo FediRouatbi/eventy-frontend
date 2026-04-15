@@ -1,15 +1,25 @@
 import { Link, createFileRoute } from '@tanstack/react-router';
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   ArrowRight,
   Building2,
   CalendarRange,
+  CircleDollarSign,
   MapPin,
   ShieldCheck,
   Tag,
   Ticket,
 } from 'lucide-react';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
 import { Badge } from '#/components/ui/badge';
 import { Button } from '#/components/ui/button';
@@ -22,7 +32,7 @@ import {
 } from '#/components/ui/card';
 import { AdminLoadingGrid } from '#/features/admin/components/AdminSurface';
 import { isSuperAdminSession } from '#/features/admin/auth';
-import { getAdminOverview } from '#/lib/api/admin';
+import { getAdminOverview, getAdminPayments } from '#/lib/api/admin';
 import { useAuthSession } from '#/lib/auth';
 
 export const Route = createFileRoute('/admin/')({
@@ -48,6 +58,31 @@ function formatDateTime(value: string) {
 
 function formatCount(value: number, singular: string, plural = `${singular}s`) {
   return `${value} ${value === 1 ? singular : plural}`;
+}
+
+function formatCurrency(value: number, currency: string) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency || 'USD',
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function formatPaymentStatusLabel(status: string) {
+  return status
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function paymentStatusVariant(status: string): 'secondary' | 'outline' | 'default' {
+  if (status === 'paid') {
+    return 'secondary';
+  }
+  if (status === 'pending_payment') {
+    return 'outline';
+  }
+  return 'default';
 }
 
 function StatCard({
@@ -105,12 +140,29 @@ function AdminOverviewPage() {
     refetchInterval: 5000,
     refetchOnWindowFocus: true,
   });
+  const {
+    data: payments,
+    error: paymentsError,
+    isLoading: isPaymentsLoading,
+  } = useQuery({
+    queryKey: ['admin-payments', session?.access_token],
+    enabled: Boolean(session?.access_token),
+    queryFn: () => getAdminPayments(session!.access_token, { limit: 15 }),
+    refetchOnWindowFocus: true,
+    retry: 1,
+  });
   const loadError =
     error instanceof Error
       ? error.message
       : error
         ? 'Failed to load overview'
         : '';
+  const paymentErrorMessage =
+    paymentsError instanceof Error ? paymentsError.message : '';
+  const paymentTrend = useMemo(
+    () => payments?.trends?.slice(-14) ?? [],
+    [payments?.trends],
+  );
 
   return (
     <div className="space-y-6">
@@ -187,8 +239,177 @@ function AdminOverviewPage() {
             />
           </div>
 
+          <Card className="app-surface rounded-[1.75rem] border-border/70">
+            <CardHeader>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <CardTitle className="text-3xl">Payments and revenue</CardTitle>
+                  <CardDescription className="text-base">
+                    {isSuperAdmin
+                      ? 'Platform-wide payment activity and trend signals.'
+                      : 'Organizer-scoped payment activity and revenue trend.'}
+                  </CardDescription>
+                </div>
+                <Badge variant="outline" className="rounded-full">
+                  <CircleDollarSign className="mr-1.5 size-3.5" />
+                  {isSuperAdmin ? 'All organizers' : 'Your organizer'}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {paymentErrorMessage ? (
+                <InlineError
+                  message={`${paymentErrorMessage}. Add GET /v1/admins/payments to enable this panel.`}
+                />
+              ) : null}
+
+              {payments ? (
+                <>
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                    <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                        Gross
+                      </p>
+                      <p className="mt-2 text-2xl font-semibold text-foreground">
+                        {formatCurrency(
+                          payments.summary.gross,
+                          payments.summary.currency,
+                        )}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                        Paid orders
+                      </p>
+                      <p className="mt-2 text-2xl font-semibold text-foreground">
+                        {payments.summary.paid_orders}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                        Pending
+                      </p>
+                      <p className="mt-2 text-2xl font-semibold text-foreground">
+                        {payments.summary.pending_orders}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                        Failed / expired
+                      </p>
+                      <p className="mt-2 text-2xl font-semibold text-foreground">
+                        {payments.summary.failed_or_expired_orders}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                        Average order
+                      </p>
+                      <p className="mt-2 text-2xl font-semibold text-foreground">
+                        {formatCurrency(
+                          payments.summary.average_order_value,
+                          payments.summary.currency,
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+                    <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
+                      <p className="text-sm font-semibold text-foreground">
+                        Revenue trend (last 14 days)
+                      </p>
+                      <div className="mt-3 h-72 w-full">
+                        {paymentTrend.length === 0 ? (
+                          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                            No trend data yet.
+                          </div>
+                        ) : (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={paymentTrend}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                              <XAxis
+                                dataKey="day"
+                                tick={{ fontSize: 12 }}
+                                tickFormatter={(value: string) =>
+                                  formatDate(value).replace(',', '')
+                                }
+                              />
+                              <YAxis tick={{ fontSize: 12 }} />
+                              <Tooltip
+                                formatter={(value: number) =>
+                                  formatCurrency(value, payments.summary.currency)
+                                }
+                                labelFormatter={(value: string) => formatDate(value)}
+                              />
+                              <Bar dataKey="gross" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
+                      <p className="text-sm font-semibold text-foreground">
+                        Latest payments
+                      </p>
+                      <div className="mt-3 space-y-2">
+                        {payments.items.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">
+                            No payment records available.
+                          </p>
+                        ) : (
+                          payments.items.map((payment) => (
+                            <div
+                              key={payment.id}
+                              className="rounded-xl border border-border/70 bg-card/80 px-3 py-3"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0 space-y-1">
+                                  <p className="truncate text-sm font-semibold text-foreground">
+                                    {payment.order_number}
+                                  </p>
+                                  <p className="truncate text-xs text-muted-foreground">
+                                    {payment.event_title ?? 'Event unavailable'}
+                                  </p>
+                                  <p className="truncate text-xs text-muted-foreground">
+                                    {payment.customer_name} - {payment.customer_email}
+                                  </p>
+                                </div>
+                                <div className="space-y-1 text-right">
+                                  <p className="text-sm font-semibold text-foreground">
+                                    {formatCurrency(payment.amount, payment.currency)}
+                                  </p>
+                                  <Badge
+                                    variant={paymentStatusVariant(payment.status)}
+                                    className="rounded-full"
+                                  >
+                                    {formatPaymentStatusLabel(payment.status)}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <p className="mt-2 text-xs text-muted-foreground">
+                                {payment.paid_at
+                                  ? `Paid ${formatDateTime(payment.paid_at)}`
+                                  : `Created ${formatDateTime(payment.created_at)}`}
+                              </p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : isPaymentsLoading ? (
+                <div className="text-sm text-muted-foreground">
+                  Loading payments analytics...
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
-            <Card className="rounded-[1.75rem] border-border/70 bg-card/94 shadow-none">
+            <Card className="app-surface rounded-[1.75rem] border-border/70">
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
@@ -294,7 +515,7 @@ function AdminOverviewPage() {
               </CardContent>
             </Card>
 
-            <Card className="rounded-[1.75rem] border-border/70 bg-card/94 shadow-none">
+            <Card className="app-surface rounded-[1.75rem] border-border/70">
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
@@ -346,7 +567,7 @@ function AdminOverviewPage() {
             </Card>
           </div>
 
-          <Card className="rounded-[1.75rem] border-border/70 bg-card/94 shadow-none">
+          <Card className="app-surface rounded-[1.75rem] border-border/70">
             <CardHeader>
               <CardTitle className="text-3xl">Upcoming sessions</CardTitle>
               <CardDescription className="text-base">
@@ -392,7 +613,7 @@ function AdminOverviewPage() {
                 : 'xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]'
             }`}
           >
-            <Card className="rounded-[1.75rem] border-border/70 bg-card/94 shadow-none">
+            <Card className="app-surface rounded-[1.75rem] border-border/70">
               <CardHeader>
                 <CardTitle className="text-3xl">
                   {isSuperAdmin ? 'Platform scope' : 'Publishing snapshot'}
@@ -508,7 +729,7 @@ function AdminOverviewPage() {
               </CardContent>
             </Card>
 
-            <Card className="rounded-[1.75rem] border-border/70 bg-card/94 shadow-none">
+            <Card className="app-surface rounded-[1.75rem] border-border/70">
               <CardHeader>
                 <CardTitle className="text-3xl">
                   {isSuperAdmin ? 'Organizer workspaces' : 'Session readiness'}

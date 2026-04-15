@@ -29,7 +29,7 @@ export const Route = createFileRoute("/orders/$orderId")({
 function ReceiptSkeleton() {
   return (
     <main className="mx-auto min-h-[calc(100vh-11rem)] max-w-5xl px-4 pb-12 pt-10 sm:pt-14">
-      <section className="rounded-[2rem] border border-border/70 bg-card/90 p-6 shadow-sm sm:p-8">
+      <section className="app-surface rounded-[2rem] p-6 sm:p-8">
         <div className="h-3 w-28 rounded-full bg-muted/60" />
         <div className="mt-4 h-10 w-72 max-w-full rounded-[1rem] bg-muted/60" />
         <div className="mt-4 space-y-2">
@@ -99,7 +99,7 @@ function OrderReceiptPage() {
   if (!order) {
     return (
       <main className="mx-auto max-w-5xl px-4 pb-12 pt-10 sm:pt-14">
-        <section className="rounded-[2rem] border border-border/70 bg-card/90 p-6 shadow-sm sm:p-8">
+        <section className="app-surface rounded-[2rem] p-6 sm:p-8">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
             Order
           </p>
@@ -121,7 +121,7 @@ function OrderReceiptPage() {
 
   return (
     <main className="mx-auto min-h-[calc(100vh-11rem)] max-w-5xl px-4 pb-12 pt-10 sm:pt-14">
-      <section className="rounded-[2rem] border border-border/70 bg-card/90 p-6 shadow-sm sm:p-8">
+      <section className="app-surface rounded-[2rem] p-6 sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
           Receipt
         </p>
@@ -134,7 +134,7 @@ function OrderReceiptPage() {
       </section>
 
       <section className="mt-8 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <div className="rounded-[1.75rem] border border-border/70 bg-card/90 p-5 shadow-sm">
+        <div className="app-surface rounded-[1.75rem] p-5">
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Order details
@@ -218,7 +218,7 @@ function OrderReceiptPage() {
           </div>
         </div>
 
-        <aside className="rounded-[1.75rem] border border-border/70 bg-card/90 p-5 shadow-sm">
+        <aside className="app-surface rounded-[1.75rem] p-5">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Actions
           </p>
@@ -238,4 +238,3 @@ function OrderReceiptPage() {
     </main>
   );
 }
-

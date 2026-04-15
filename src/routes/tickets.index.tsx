@@ -38,7 +38,7 @@ export const Route = createFileRoute('/tickets/')({
 function TicketsSkeleton({ items = 2 }: { items?: number }) {
   return (
     <section className="mt-8 space-y-4">
-      <div className="flex flex-col gap-3 rounded-[1.75rem] border border-border/70 bg-card/90 p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      <div className="app-surface flex flex-col gap-3 rounded-[1.75rem] p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-2">
           <div className="h-3 w-28 rounded-full bg-muted/60" />
           <div className="h-3 w-44 rounded-full bg-muted/50" />
@@ -49,7 +49,7 @@ function TicketsSkeleton({ items = 2 }: { items?: number }) {
       {Array.from({ length: items }).map((_, index) => (
         <article
           key={`tickets-skeleton-${index}`}
-          className="rounded-[1.75rem] border border-border/70 bg-card/90 p-5 shadow-sm"
+          className="app-surface rounded-[1.75rem] p-5"
         >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-2">
@@ -147,7 +147,7 @@ function TicketGroupCard({ group }: { group: TicketGroup }) {
       : 'Valid';
 
   return (
-    <article className="rounded-[1.75rem] border border-border/70 bg-card/90 p-5 shadow-sm">
+    <article className="app-surface rounded-[1.75rem] p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -157,7 +157,7 @@ function TicketGroupCard({ group }: { group: TicketGroup }) {
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            {formatDateRangeLabel(group.session_starts_at, group.session_ends_at)} •{' '}
+            {formatDateRangeLabel(group.session_starts_at, group.session_ends_at)} -{' '}
             {formatTimeRangeLabel(group.session_starts_at, group.session_ends_at)}
           </p>
         </div>
@@ -170,7 +170,7 @@ function TicketGroupCard({ group }: { group: TicketGroup }) {
             <SheetHeader className="pr-10">
               <SheetTitle>{group.event_title}</SheetTitle>
               <SheetDescription>
-                {group.tickets.length} ticket{group.tickets.length === 1 ? '' : 's'} •{' '}
+                {group.tickets.length} ticket{group.tickets.length === 1 ? '' : 's'} -{' '}
                 Order {group.order_number}
               </SheetDescription>
             </SheetHeader>
@@ -191,7 +191,7 @@ function TicketGroupCard({ group }: { group: TicketGroup }) {
                   return (
                     <div
                       key={ticket.id}
-                      className="rounded-[1.75rem] border border-border/70 bg-card/70 p-5"
+                      className="rounded-[1.75rem] border border-border/70 bg-card/75 p-5"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="min-w-0">
@@ -277,7 +277,7 @@ function TicketGroupCard({ group }: { group: TicketGroup }) {
               {group.order_number}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {group.tickets.length} ticket{group.tickets.length === 1 ? '' : 's'} •{' '}
+              {group.tickets.length} ticket{group.tickets.length === 1 ? '' : 's'} -{' '}
               {group.order_status}
             </p>
           </div>
@@ -309,7 +309,7 @@ function TicketGroupCard({ group }: { group: TicketGroup }) {
               {group.tickets.length}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Tap “Show tickets” for QR codes
+              Tap "Show tickets" for QR codes
             </p>
           </div>
         </div>
@@ -339,7 +339,7 @@ function TicketsPage() {
   if (!session || isInitialLoading) {
     return (
       <main className="mx-auto max-w-5xl px-4 pb-12 pt-10 sm:pt-14">
-        <section className="rounded-[2rem] border border-border/70 bg-card/90 p-6 shadow-sm sm:p-8">
+        <section className="app-surface rounded-[2rem] p-6 sm:p-8">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
             Tickets
           </p>
@@ -358,7 +358,7 @@ function TicketsPage() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-12 pt-10 sm:pt-14">
-      <section className="rounded-[2rem] border border-border/70 bg-card/90 p-6 shadow-sm sm:p-8">
+      <section className="app-surface rounded-[2rem] p-6 sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
           Tickets
         </p>
@@ -371,7 +371,7 @@ function TicketsPage() {
       </section>
 
       <section className="mt-8 space-y-4">
-        <div className="flex flex-col gap-3 rounded-[1.75rem] border border-border/70 bg-card/90 p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="app-surface flex flex-col gap-3 rounded-[1.75rem] p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Account tickets
