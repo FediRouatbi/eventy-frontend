@@ -1,6 +1,16 @@
+import { useState } from "react";
+
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, redirect } from "@tanstack/react-router";
-import { ReceiptText, RefreshCw } from "lucide-react";
+import {
+  CheckCircle2,
+  CircleDashed,
+  Download,
+  MailCheck,
+  ReceiptText,
+  RefreshCw,
+} from "lucide-react";
+import { toast } from "sonner";
 
 import { Badge } from "#/components/ui/badge";
 import { Button } from "#/components/ui/button";
@@ -9,16 +19,19 @@ import {
   formatPriceLabel,
   formatTimeRangeLabel,
 } from "#/features/events/display";
-import { getMyCheckoutOrderById } from "#/lib/api/orders";
-import { getAuthSession, useAuthSession } from "#/lib/auth";
+import {
+  getMyCheckoutOrderById,
+  type CheckoutOrder,
+} from "#/lib/api/orders";
+import { getAuthSession, hydrateAuthSession, useAuthSession } from "#/lib/auth";
 
 export const Route = createFileRoute("/orders/$orderId")({
-  beforeLoad: () => {
+  beforeLoad: async () => {
     if (typeof window === "undefined") {
       return;
     }
 
-    const session = getAuthSession();
+    const session = getAuthSession() ?? (await hydrateAuthSession());
     if (!session) {
       throw redirect({ to: "/login" });
     }
@@ -73,9 +86,96 @@ function ReceiptSkeleton() {
   );
 }
 
+function formatDateTimeLabel(value: string | null | undefined) {
+  if (!value) {
+    return "—";
+  }
+
+  return new Date(value).toLocaleString();
+}
+
+function buildPaymentTimeline(order: CheckoutOrder) {
+  return [
+    {
+      id: "created",
+      label: "Order created",
+      detail: `We reserved your tickets on ${formatDateTimeLabel(order.created_at)}.`,
+      done: true,
+    },
+    {
+      id: "payment",
+      label: order.paid_at ? "Payment confirmed" : "Payment pending",
+      detail: order.paid_at
+        ? `Payment was completed on ${formatDateTimeLabel(order.paid_at)}.`
+        : `Current status is ${order.status}. Complete payment before ${formatDateTimeLabel(order.expires_at)}.`,
+      done: Boolean(order.paid_at),
+    },
+    {
+      id: "receipt",
+      label: order.tickets_emailed_at ? "Tickets emailed" : "Receipt ready",
+      detail: order.tickets_emailed_at
+        ? `Tickets were emailed on ${formatDateTimeLabel(order.tickets_emailed_at)}.`
+        : "Your receipt is available now. You can download it as PDF anytime.",
+      done: Boolean(order.tickets_emailed_at),
+    },
+    {
+      id: "updated",
+      label: "Last update",
+      detail: `Order updated on ${formatDateTimeLabel(order.updated_at)}.`,
+      done: true,
+    },
+  ];
+}
+
+async function downloadReceiptPdf(order: CheckoutOrder) {
+  const { jsPDF } = await import("jspdf");
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const pageHeight = doc.internal.pageSize.getHeight();
+  let cursorY = 56;
+
+  const addLine = (line: string, options?: { bold?: boolean; indent?: number; size?: number }) => {
+    if (cursorY > pageHeight - 56) {
+      doc.addPage();
+      cursorY = 56;
+    }
+
+    doc.setFont("helvetica", options?.bold ? "bold" : "normal");
+    doc.setFontSize(options?.size ?? 11);
+    doc.text(line, 48 + (options?.indent ?? 0), cursorY);
+    cursorY += 18;
+  };
+
+  addLine("Eventy receipt", { bold: true, size: 18 });
+  addLine(`Order: ${order.order_number}`, { bold: true, size: 13 });
+  addLine(`Status: ${order.status}`);
+  addLine(`Customer: ${order.customer_name} (${order.customer_email})`);
+  addLine(`Created: ${formatDateTimeLabel(order.created_at)}`);
+  addLine(`Paid: ${formatDateTimeLabel(order.paid_at)}`);
+  addLine(`Updated: ${formatDateTimeLabel(order.updated_at)}`);
+  addLine("");
+  addLine("Items", { bold: true, size: 13 });
+
+  for (const item of order.items) {
+    addLine(`${item.ticket_type_name} — ${formatPriceLabel(item.unit_price * item.quantity, item.currency)}`, {
+      bold: true,
+    });
+    addLine(item.event_title, { indent: 12 });
+    addLine(formatDateRangeLabel(item.session_starts_at, item.session_ends_at), { indent: 12 });
+    addLine(
+      `${item.quantity} x ${formatPriceLabel(item.unit_price, item.currency)}`,
+      { indent: 12 },
+    );
+    addLine("");
+  }
+
+  addLine(`Total: ${formatPriceLabel(order.subtotal, order.currency)}`, { bold: true, size: 13 });
+  doc.save(`receipt-${order.order_number}.pdf`);
+}
+
 function OrderReceiptPage() {
   const session = useAuthSession();
   const { orderId } = Route.useParams();
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const {
     data: order,
@@ -118,6 +218,25 @@ function OrderReceiptPage() {
       </main>
     );
   }
+
+  const timeline = buildPaymentTimeline(order);
+
+  const handleDownload = async () => {
+    if (isDownloading) {
+      return;
+    }
+
+    setIsDownloading(true);
+
+    try {
+      await downloadReceiptPdf(order);
+      toast.success("Receipt downloaded");
+    } catch {
+      toast.error("Failed to download receipt PDF");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <main className="mx-auto min-h-[calc(100vh-11rem)] max-w-5xl px-4 pb-12 pt-10 sm:pt-14">
@@ -183,6 +302,32 @@ function OrderReceiptPage() {
             </div>
           </div>
 
+          <div className="mt-5 rounded-[1.25rem] border border-border/70 bg-background/70 p-4">
+            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+              Payment timeline
+            </p>
+            <ul className="mt-4 space-y-3">
+              {timeline.map((entry) => (
+                <li
+                  key={entry.id}
+                  className="flex items-start gap-3 rounded-xl border border-border/60 bg-card/80 p-3"
+                >
+                  {entry.id === "receipt" && entry.done ? (
+                    <MailCheck className="mt-0.5 size-4 text-primary" />
+                  ) : entry.done ? (
+                    <CheckCircle2 className="mt-0.5 size-4 text-primary" />
+                  ) : (
+                    <CircleDashed className="mt-0.5 size-4 text-muted-foreground" />
+                  )}
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{entry.label}</p>
+                    <p className="text-sm text-muted-foreground">{entry.detail}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+
           <div className="mt-5 space-y-4">
             {order.items.map((item) => (
               <article
@@ -223,6 +368,16 @@ function OrderReceiptPage() {
             Actions
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full bg-background"
+              onClick={() => void handleDownload()}
+              disabled={isDownloading}
+            >
+              <Download className="size-4" />
+              {isDownloading ? "Generating PDF..." : "Download PDF receipt"}
+            </Button>
             <Button asChild variant="outline" className="rounded-full bg-background">
               <Link to="/orders">
                 <ReceiptText className="size-4" />

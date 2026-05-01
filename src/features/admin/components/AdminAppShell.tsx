@@ -143,7 +143,7 @@ export function AdminAppShell({ session }: { session: AuthSession }) {
   const sectionMeta = getSectionMeta(location.pathname, isSuperAdmin);
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      await logout(session.refresh_token);
+        await logout();
     },
     onSettled: () => {
       clearAuthSession();

@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { Camera, RefreshCw, ScanLine } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -10,7 +10,7 @@ import { Card, CardContent } from "#/components/ui/card";
 import { formatDateRangeLabel, formatTimeRangeLabel } from "#/features/events/display";
 import { canAccessAdminApp } from "#/features/admin/auth";
 import { checkInTicket, type CheckInResult } from "#/lib/api/tickets";
-import { useAuthSession } from "#/lib/auth";
+import { getAuthSession, hydrateAuthSession, useAuthSession } from "#/lib/auth";
 
 type Detector = {
   detect: (image: HTMLVideoElement) => Promise<Array<{ rawValue?: string }>>;
@@ -34,11 +34,21 @@ function createQrDetector(): Detector | null {
 }
 
 export const Route = createFileRoute("/admin/check-in")({
+  beforeLoad: async () => {
+    const session = getAuthSession() ?? (await hydrateAuthSession());
+
+    if (!session) {
+      throw redirect({ to: "/login" });
+    }
+
+    if (!canAccessAdminApp(session)) {
+      throw redirect({ to: "/" });
+    }
+  },
   component: AdminCheckInPage,
 });
 
 function AdminCheckInPage() {
-  const navigate = useNavigate();
   const session = useAuthSession();
   const accessToken = session?.access_token ?? "";
 
@@ -53,16 +63,6 @@ function AdminCheckInPage() {
 
   const detector = useMemo(() => createQrDetector(), []);
   const barcodeSupported = Boolean(detector);
-
-  useEffect(() => {
-    if (!session) {
-      return;
-    }
-
-    if (!canAccessAdminApp(session)) {
-      navigate({ to: "/" });
-    }
-  }, [navigate, session]);
 
   const checkInMutation = useMutation({
     mutationFn: async (ticketCode: string) => {

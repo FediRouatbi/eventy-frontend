@@ -2,104 +2,22 @@ import { queryOptions } from "@tanstack/react-query";
 import type { components } from "#/lib/api/generated/schema";
 
 import { apiClient, createApiClient } from "./client";
+import { unwrapData } from "./response";
 
-export type CheckoutOrderItem = {
-  ticket_type_id: string;
-  ticket_type_name: string;
-  quantity: number;
-  unit_price: number;
-  currency: string;
-  event_id: string;
-  event_title: string;
-  session_id: string;
-  session_starts_at: string;
-  session_ends_at?: string | null;
-};
+export type CheckoutOrderItem = components["schemas"]["CheckoutOrderItem"];
 
-export type CheckoutOrder = {
-  id: string;
-  token: string;
-  reservation_id: string;
-  order_number: string;
-  status: string;
-  customer_name: string;
-  customer_email: string;
-  currency: string;
-  subtotal: number;
-  expires_at: string;
-  created_at: string;
-  updated_at: string;
-  stripe_checkout_session_id?: string;
-  paid_at?: string | null;
-  items: CheckoutOrderItem[];
-};
+export type CheckoutOrder = components["schemas"]["CheckoutOrder"];
 
 export type CheckoutOrderSummary = components["schemas"]["CheckoutOrderSummary"];
 
-export type StripeCheckoutSessionResponse = {
-  session_id: string;
-  checkout_url: string;
-  order_id: string;
-  order_number: string;
-  expires_at: string;
-};
+export type StripeCheckoutSessionResponse =
+  components["schemas"]["StripeCheckoutSessionResponse"];
 
-type ApiErrorPayload = {
-  message?: string;
-  error?: string;
-};
-
-function getErrorMessage(payload: unknown, fallback: string) {
-  if (
-    payload &&
-    typeof payload === "object" &&
-    "message" in payload &&
-    typeof (payload as { message?: unknown }).message === "string"
-  ) {
-    return (payload as { message: string }).message;
-  }
-
-  if (
-    payload &&
-    typeof payload === "object" &&
-    "error" in payload &&
-    typeof (payload as { error?: unknown }).error === "string"
-  ) {
-    return (payload as { error: string }).error;
-  }
-
-  return fallback;
-}
-
-function unwrapData<T>(
-  payload: {
-    data?: T;
-    error?: ApiErrorPayload;
-  },
-  fallback: string,
+export async function createCheckoutOrder(
+  input: components["schemas"]["CreateCheckoutOrderInput"],
 ) {
-  if (payload.error || !payload.data) {
-    throw new Error(getErrorMessage(payload.error, fallback));
-  }
-
-  return payload.data;
-}
-
-export async function createCheckoutOrder(input: {
-  reservation_id: string;
-  reservation_token: string;
-  customer_name: string;
-  customer_email: string;
-}) {
-  const client = apiClient as {
-    POST: (
-      path: "/v1/public/checkout-orders",
-      init?: { body: typeof input },
-    ) => Promise<{ data?: CheckoutOrder; error?: ApiErrorPayload }>;
-  };
-
   return unwrapData(
-    await client.POST("/v1/public/checkout-orders", {
+    await apiClient.POST("/v1/public/checkout-orders", {
       body: input,
     }),
     "Failed to create checkout order",
@@ -107,20 +25,8 @@ export async function createCheckoutOrder(input: {
 }
 
 export async function getCheckoutOrder(orderID: string, orderToken: string) {
-  const client = apiClient as {
-    GET: (
-      path: "/v1/public/checkout-orders/{orderID}",
-      init?: {
-        params: {
-          path: { orderID: string };
-          query: { token: string };
-        };
-      },
-    ) => Promise<{ data?: CheckoutOrder; error?: ApiErrorPayload }>;
-  };
-
   return unwrapData(
-    await client.GET("/v1/public/checkout-orders/{orderID}", {
+    await apiClient.GET("/v1/public/checkout-orders/{orderID}", {
       params: {
         path: {
           orderID,
@@ -135,18 +41,8 @@ export async function getCheckoutOrder(orderID: string, orderToken: string) {
 }
 
 export async function createStripeCheckoutSession(orderID: string, orderToken: string) {
-  const client = apiClient as {
-    POST: (
-      path: "/v1/public/checkout-orders/{orderID}/stripe-session",
-      init?: {
-        params: { path: { orderID: string } };
-        body: { order_token: string };
-      },
-    ) => Promise<{ data?: StripeCheckoutSessionResponse; error?: ApiErrorPayload }>;
-  };
-
   return unwrapData(
-    await client.POST("/v1/public/checkout-orders/{orderID}/stripe-session", {
+    await apiClient.POST("/v1/public/checkout-orders/{orderID}/stripe-session", {
       params: {
         path: {
           orderID,
@@ -161,15 +57,8 @@ export async function createStripeCheckoutSession(orderID: string, orderToken: s
 }
 
 export async function getCheckoutOrderByStripeSession(stripeSessionID: string) {
-  const client = apiClient as {
-    GET: (
-      path: "/v1/public/stripe-sessions/{stripeSessionID}/checkout-order",
-      init?: { params: { path: { stripeSessionID: string } } },
-    ) => Promise<{ data?: CheckoutOrderSummary; error?: ApiErrorPayload }>;
-  };
-
   return unwrapData(
-    await client.GET("/v1/public/stripe-sessions/{stripeSessionID}/checkout-order", {
+    await apiClient.GET("/v1/public/stripe-sessions/{stripeSessionID}/checkout-order", {
       params: {
         path: {
           stripeSessionID,

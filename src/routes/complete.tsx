@@ -6,11 +6,10 @@ export const Route = createFileRoute("/complete")({
   }),
   beforeLoad: ({ search }) => {
     throw redirect({
-      to: "/checkout/complete",
+      to: "/checkout/success",
       search: {
         session_id: search.session_id,
       },
     });
   },
 });
-

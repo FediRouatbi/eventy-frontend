@@ -6,15 +6,15 @@ import { Badge } from '#/components/ui/badge';
 import { Button } from '#/components/ui/button';
 import { formatPriceLabel } from '#/features/events/display';
 import { listMyCheckoutOrders } from '#/lib/api/orders';
-import { getAuthSession, useAuthSession } from '#/lib/auth';
+import { getAuthSession, hydrateAuthSession, useAuthSession } from '#/lib/auth';
 
 export const Route = createFileRoute('/orders/')({
-  beforeLoad: () => {
+  beforeLoad: async () => {
     if (typeof window === 'undefined') {
       return;
     }
 
-    const session = getAuthSession();
+    const session = getAuthSession() ?? (await hydrateAuthSession());
     if (!session) {
       throw redirect({ to: '/login' });
     }

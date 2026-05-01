@@ -38,12 +38,12 @@ import {
   resendRegisterOtp,
   verifyRegisterOtp,
 } from "#/lib/api/auth";
-import { getAuthSession, saveAuthSession } from "#/lib/auth";
+import { getAuthSession, hydrateAuthSession, saveAuthSession } from "#/lib/auth";
 import { canAccessAdminApp } from "#/features/admin/auth";
 
 export const Route = createFileRoute("/register")({
-  beforeLoad: () => {
-    const session = getAuthSession();
+  beforeLoad: async () => {
+    const session = getAuthSession() ?? (await hydrateAuthSession());
 
     if (session) {
       throw redirect({
@@ -194,8 +194,8 @@ function RegisterPage() {
             Create your Eventy account.
           </CardTitle>
           <CardDescription className="max-w-xl text-base leading-8">
-            Register as a normal user, verify your email with an OTP, and start
-            discovering events right away.
+            Create your account, verify your email with an OTP, and start
+            exploring events in minutes.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5 px-0">
@@ -206,7 +206,7 @@ function RegisterPage() {
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">Quick sign-up</p>
                   <p className="text-sm leading-6 text-muted-foreground">
-                    Create a customer account with your name, email, and
+                    Set up your Eventy account with your name, email, and
                     password in a few seconds.
                   </p>
                 </div>

@@ -1,4 +1,4 @@
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -57,9 +57,20 @@ import {
   updateOrganizer,
   updateOrganizerAdmin,
 } from "#/lib/api/admin";
-import { useAuthSession } from "#/lib/auth";
+import { getAuthSession, hydrateAuthSession, useAuthSession } from "#/lib/auth";
 
 export const Route = createFileRoute("/admin/organizers/$organizerId")({
+  beforeLoad: async () => {
+    const session = getAuthSession() ?? (await hydrateAuthSession());
+
+    if (!session) {
+      throw redirect({ to: "/login" });
+    }
+
+    if (!isSuperAdminSession(session)) {
+      throw redirect({ to: "/admin" });
+    }
+  },
   component: AdminOrganizerDetailPage,
 });
 
@@ -161,10 +172,15 @@ function AdminOrganizerDetailPage() {
   });
   const updateOrganizerAdminMutation = useMutation({
     mutationFn: (values: EditAdminFormValues) =>
-      updateOrganizerAdmin(session!.access_token, String(workspace!.organizer.id), {
-        admin_name: values.admin_name.trim(),
-        admin_email: values.admin_email.trim(),
-      }),
+      updateOrganizerAdmin(
+        session!.access_token,
+        String(workspace!.organizer.id),
+        String(workspace!.admin!.id),
+        {
+          admin_name: values.admin_name.trim(),
+          admin_email: values.admin_email.trim(),
+        },
+      ),
   });
   const deleteOrganizerMutation = useMutation({
     mutationFn: (targetOrganizerId: string) =>
@@ -172,23 +188,15 @@ function AdminOrganizerDetailPage() {
   });
   const deleteOrganizerAdminMutation = useMutation({
     mutationFn: () =>
-      deleteOrganizerAdmin(session!.access_token, String(workspace!.organizer.id)),
+      deleteOrganizerAdmin(
+        session!.access_token,
+        String(workspace!.organizer.id),
+        String(workspace!.admin!.id),
+      ),
   });
   const isUpdatingOrganizer = updateOrganizerMutation.isPending;
   const isUpdatingAdmin = updateOrganizerAdminMutation.isPending;
   const isDeletingAdmin = deleteOrganizerAdminMutation.isPending;
-
-  useEffect(() => {
-    if (!session) {
-      return;
-    }
-
-    if (!isSuperAdminSession(session)) {
-      navigate({ to: "/admin" });
-      return;
-    }
-
-  }, [navigate, organizerId, session]);
 
   useEffect(() => {
     if (!loadedWorkspace) {
@@ -327,6 +335,14 @@ function AdminOrganizerDetailPage() {
 
   async function handleDeleteAdmin() {
     if (!session || !workspace?.admin) {
+      return;
+    }
+
+    if (workspace.organizer.admin_count <= 1) {
+      toast.error("Cannot delete the last organizer admin", {
+        description:
+          "Update this admin account instead. Every organizer must keep at least one admin.",
+      });
       return;
     }
 
@@ -495,7 +511,11 @@ function AdminOrganizerDetailPage() {
                     variant="ghost"
                     className="rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
                     onClick={() => setAdminPendingDelete(true)}
-                    disabled={!workspace.admin || isDeletingAdmin}
+                    disabled={
+                      !workspace.admin ||
+                      isDeletingAdmin ||
+                      workspace.organizer.admin_count <= 1
+                    }
                   >
                     {isDeletingAdmin ? (
                       <LoaderCircle className="size-4 animate-spin" />
@@ -505,6 +525,11 @@ function AdminOrganizerDetailPage() {
                     Delete admin
                   </Button>
                 </div>
+                {workspace.organizer.admin_count <= 1 ? (
+                  <p className="text-sm text-muted-foreground">
+                    This organizer currently has one admin. Deleting the last admin is blocked.
+                  </p>
+                ) : null}
               </CardContent>
             </Card>
           </AdminSectionCard>
@@ -605,7 +630,7 @@ function AdminOrganizerDetailPage() {
             <AlertDialogTitle>Delete organizer admin?</AlertDialogTitle>
             <AlertDialogDescription>
               {workspace?.admin
-                ? `This deletes ${workspace.admin.name}'s admin account. The organizer workspace will stay, but it will no longer have a linked admin.`
+                ? `This deletes ${workspace.admin.name}'s admin account. The organizer workspace will stay, but it must keep at least one admin account.`
                 : "This deletes the linked organizer admin account."}
             </AlertDialogDescription>
           </AlertDialogHeader>

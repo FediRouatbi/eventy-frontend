@@ -7,6 +7,11 @@ export const API_BASE_URL =
 export function createApiClient(accessToken?: string) {
   return createClient<paths>({
     baseUrl: API_BASE_URL,
+    fetch: (input, init) =>
+      fetch(input, {
+        ...init,
+        credentials: "include",
+      }),
     headers: accessToken
       ? {
           Authorization: `Bearer ${accessToken}`,

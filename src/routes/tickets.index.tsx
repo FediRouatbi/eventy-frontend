@@ -19,15 +19,15 @@ import {
   formatTimeRangeLabel,
 } from '#/features/events/display';
 import { listMyTickets, type Ticket } from '#/lib/api/tickets';
-import { getAuthSession, useAuthSession } from '#/lib/auth';
+import { getAuthSession, hydrateAuthSession, useAuthSession } from '#/lib/auth';
 
 export const Route = createFileRoute('/tickets/')({
-  beforeLoad: () => {
+  beforeLoad: async () => {
     if (typeof window === 'undefined') {
       return;
     }
 
-    const session = getAuthSession();
+    const session = getAuthSession() ?? (await hydrateAuthSession());
     if (!session) {
       throw redirect({ to: '/login' });
     }

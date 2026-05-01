@@ -1,4 +1,4 @@
-import { Outlet, createFileRoute, useLocation, useNavigate } from "@tanstack/react-router";
+import { Outlet, createFileRoute, redirect, useLocation, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -54,7 +54,7 @@ import {
   deleteOrganizer,
   updateOrganizer,
 } from "#/lib/api/admin";
-import { useAuthSession } from "#/lib/auth";
+import { getAuthSession, hydrateAuthSession, useAuthSession } from "#/lib/auth";
 
 type OrganizerFormValues = {
   organizer_name: string;
@@ -70,6 +70,17 @@ type EditOrganizerFormValues = {
 };
 
 export const Route = createFileRoute("/admin/organizers")({
+  beforeLoad: async () => {
+    const session = getAuthSession() ?? (await hydrateAuthSession());
+
+    if (!session) {
+      throw redirect({ to: "/login" });
+    }
+
+    if (!isSuperAdminSession(session)) {
+      throw redirect({ to: "/admin" });
+    }
+  },
   validateSearch: (search: Record<string, unknown>) => ({
     q: typeof search.q === "string" ? search.q : "",
   }),
@@ -198,18 +209,6 @@ function AdminOrganizersPage() {
       replace: true,
     });
   }
-
-  useEffect(() => {
-    if (!session) {
-      return;
-    }
-
-    if (!isSuperAdminSession(session)) {
-      navigate({ to: "/admin" });
-      return;
-    }
-
-  }, [navigate, session]);
 
   useEffect(() => {
     if (!loadedWorkspaces) {

@@ -1,818 +1,496 @@
-import { Link, createFileRoute } from '@tanstack/react-router';
-import { useMemo, type ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState } from "react";
+
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import {
-  ArrowRight,
-  Building2,
-  CalendarRange,
-  CircleDollarSign,
-  MapPin,
-  ShieldCheck,
-  Tag,
-  Ticket,
-} from 'lucide-react';
-import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
-} from 'recharts';
+} from "recharts";
+import {
+  ArrowRight,
+  CalendarDays,
+  CircleDollarSign,
+  Download,
+  TrendingUp,
+} from "lucide-react";
+import { toast } from "sonner";
 
-import { Badge } from '#/components/ui/badge';
-import { Button } from '#/components/ui/button';
+import { Badge } from "#/components/ui/badge";
+import { Button } from "#/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '#/components/ui/card';
-import { AdminLoadingGrid } from '#/features/admin/components/AdminSurface';
-import { isSuperAdminSession } from '#/features/admin/auth';
-import { getAdminOverview, getAdminPayments } from '#/lib/api/admin';
-import { useAuthSession } from '#/lib/auth';
+} from "#/components/ui/card";
+import { Input } from "#/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "#/components/ui/select";
+import { AdminLoadingGrid } from "#/features/admin/components/AdminSurface";
+import { isSuperAdminSession } from "#/features/admin/auth";
+import {
+  exportAdminPaymentsCsv,
+  getAdminOverview,
+  getAdminPayments,
+  listAdminOrganizers,
+} from "#/lib/api/admin";
+import { useAuthSession } from "#/lib/auth";
 
-export const Route = createFileRoute('/admin/')({
+export const Route = createFileRoute("/admin/")({
   component: AdminOverviewPage,
 });
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(value));
+const STATUS_COLORS = ["#0ea5e9", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#64748b"];
+
+function toISODate(value: Date) {
+  return value.toISOString().slice(0, 10);
 }
 
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date(value));
+function startOfMonth(value: Date) {
+  return new Date(value.getFullYear(), value.getMonth(), 1);
 }
 
-function formatCount(value: number, singular: string, plural = `${singular}s`) {
-  return `${value} ${value === 1 ? singular : plural}`;
+function endOfMonth(value: Date) {
+  return new Date(value.getFullYear(), value.getMonth() + 1, 0);
 }
 
 function formatCurrency(value: number, currency: string) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency || 'USD',
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: currency || "EUR",
     maximumFractionDigits: 2,
   }).format(value);
 }
 
-function formatPaymentStatusLabel(status: string) {
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function toStatusLabel(status: string) {
   return status
-    .split('_')
+    .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
+    .join(" ");
 }
 
-function paymentStatusVariant(status: string): 'secondary' | 'outline' | 'default' {
-  if (status === 'paid') {
-    return 'secondary';
-  }
-  if (status === 'pending_payment') {
-    return 'outline';
-  }
-  return 'default';
-}
-
-function StatCard({
-  caption,
-  helper,
-  icon,
-  value,
-}: {
-  caption: string;
-  helper: string;
-  icon: ReactNode;
-  value: string;
-}) {
-  return (
-    <Card className="rounded-[1.5rem] border-border/70 bg-card/92 shadow-none">
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1">
-            <p className="text-sm font-semibold text-foreground">{caption}</p>
-            <p className="text-3xl font-semibold tracking-tight text-foreground">
-              {value}
-            </p>
-            <p className="text-sm text-muted-foreground">{helper}</p>
-          </div>
-          <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            {icon}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function InlineError({ message }: { message: string }) {
-  return (
-    <Card className="border-destructive/30 bg-destructive/5">
-      <CardContent className="p-4 text-sm text-destructive">
-        {message}
-      </CardContent>
-    </Card>
-  );
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
 }
 
 function AdminOverviewPage() {
   const session = useAuthSession();
   const isSuperAdmin = isSuperAdminSession(session);
-  const {
-    data: overview,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ['admin-overview', session?.access_token],
+
+  const today = useMemo(() => new Date(), []);
+  const [fromDate, setFromDate] = useState(() => toISODate(new Date(today.getTime() - 29 * 24 * 60 * 60 * 1000)));
+  const [toDate, setToDate] = useState(() => toISODate(today));
+  const [organizerId, setOrganizerId] = useState("all");
+  const timezone = useMemo(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    [],
+  );
+
+  const applyPreset = (preset: "last7" | "last30" | "thisMonth" | "lastMonth") => {
+    const now = new Date();
+    if (preset === "last7") {
+      setFromDate(toISODate(new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000)));
+      setToDate(toISODate(now));
+      return;
+    }
+    if (preset === "last30") {
+      setFromDate(toISODate(new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000)));
+      setToDate(toISODate(now));
+      return;
+    }
+    if (preset === "thisMonth") {
+      setFromDate(toISODate(startOfMonth(now)));
+      setToDate(toISODate(now));
+      return;
+    }
+
+    const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    setFromDate(toISODate(startOfMonth(previousMonth)));
+    setToDate(toISODate(endOfMonth(previousMonth)));
+  };
+
+  const overviewQuery = useQuery({
+    queryKey: ["admin-overview", session?.access_token],
     enabled: Boolean(session?.access_token),
     queryFn: () => getAdminOverview(session!.access_token),
-    refetchInterval: 5000,
     refetchOnWindowFocus: true,
+    staleTime: 30_000,
   });
-  const {
-    data: payments,
-    error: paymentsError,
-    isLoading: isPaymentsLoading,
-  } = useQuery({
-    queryKey: ['admin-payments', session?.access_token],
+
+  const paymentsQuery = useQuery({
+    queryKey: ["admin-payments", session?.access_token],
     enabled: Boolean(session?.access_token),
-    queryFn: () => getAdminPayments(session!.access_token, { limit: 15 }),
+    queryFn: () => getAdminPayments(session!.access_token, { limit: 40 }),
     refetchOnWindowFocus: true,
-    retry: 1,
+    staleTime: 30_000,
   });
-  const loadError =
-    error instanceof Error
-      ? error.message
-      : error
-        ? 'Failed to load overview'
-        : '';
-  const paymentErrorMessage =
-    paymentsError instanceof Error ? paymentsError.message : '';
-  const paymentTrend = useMemo(
-    () => payments?.trends?.slice(-14) ?? [],
+
+  const organizersQuery = useQuery({
+    queryKey: ["admin-organizers", session?.access_token],
+    enabled: Boolean(session?.access_token && isSuperAdmin),
+    queryFn: () => listAdminOrganizers(session!.access_token),
+    staleTime: 60_000,
+  });
+
+  const exportMutation = useMutation({
+    mutationFn: async () =>
+      exportAdminPaymentsCsv(session!.access_token, {
+        from: fromDate,
+        to: toDate,
+        organizer_id: isSuperAdmin && organizerId !== "all" ? organizerId : undefined,
+        timezone,
+      }),
+    onSuccess: ({ blob, filename }) => {
+      downloadBlob(blob, filename);
+      toast.success("Finance export ready", {
+        description: filename,
+      });
+    },
+    onError: (error) => {
+      toast.error("Failed to export CSV", {
+        description: error instanceof Error ? error.message : "Please try again.",
+      });
+    },
+  });
+
+  const overview = overviewQuery.data;
+  const payments = paymentsQuery.data;
+
+  const statusData = useMemo(() => {
+    const buckets = new Map<string, number>();
+    for (const item of payments?.items ?? []) {
+      buckets.set(item.status, (buckets.get(item.status) ?? 0) + 1);
+    }
+    return [...buckets.entries()].map(([status, count]) => ({
+      status: toStatusLabel(status),
+      count,
+    }));
+  }, [payments?.items]);
+
+  const comparisonData = useMemo(() => {
+    if (!overview) {
+      return [];
+    }
+    return [
+      { name: "Events", value: overview.stats.events },
+      { name: "Published", value: overview.stats.published_events },
+      { name: "Drafts", value: overview.stats.draft_events },
+      { name: "Sessions", value: overview.stats.sessions },
+      { name: "Ticket Types", value: overview.stats.ticket_types },
+    ];
+  }, [overview]);
+
+  const trendData = useMemo(
+    () =>
+      (payments?.trends ?? []).map((point) => ({
+        day: formatDate(point.day),
+        gross: point.gross,
+        paidOrders: point.paid_orders,
+      })),
     [payments?.trends],
   );
 
+  const topRevenueData = useMemo(() => {
+    const buckets = new Map<string, number>();
+    for (const item of payments?.items ?? []) {
+      const key = isSuperAdmin
+        ? item.organizer_name || "Unknown organizer"
+        : item.event_title || "Unknown event";
+      buckets.set(key, (buckets.get(key) ?? 0) + item.amount);
+    }
+
+    return [...buckets.entries()]
+      .map(([name, gross]) => ({ name, gross }))
+      .sort((a, b) => b.gross - a.gross)
+      .slice(0, 6);
+  }, [isSuperAdmin, payments?.items]);
+
+  if (overviewQuery.isLoading || paymentsQuery.isLoading) {
+    return <AdminLoadingGrid rows={4} />;
+  }
+
+  if (overviewQuery.error || paymentsQuery.error || !overview || !payments) {
+    const message =
+      overviewQuery.error instanceof Error
+        ? overviewQuery.error.message
+        : paymentsQuery.error instanceof Error
+          ? paymentsQuery.error.message
+          : "Failed to load dashboard";
+    return (
+      <Card className="border-destructive/30 bg-destructive/5">
+        <CardContent className="p-4 text-sm text-destructive">{message}</CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <div className="space-y-3">
-        <Badge variant="outline" className="rounded-full">
-          Dashboard
-        </Badge>
-        <div className="space-y-2">
-          <h1 className="text-4xl font-semibold tracking-tight text-foreground">
-            Dashboard
-          </h1>
-          <p className="max-w-3xl text-sm leading-7 text-muted-foreground">
-            {isSuperAdmin
-              ? 'A platform-level workspace with the key organizer, event, session, and ticket signals in one place.'
-              : 'A focused organizer workspace for events, sessions, and ticket operations.'}
-          </p>
+      <section className="app-surface rounded-[1.9rem] border border-border/70 px-6 py-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-3">
+            <Badge variant="outline" className="rounded-full">
+              Renovated dashboard
+            </Badge>
+            <h1 className="text-4xl font-semibold tracking-tight text-foreground">Finance & Operations</h1>
+            <p className="max-w-3xl text-sm leading-7 text-muted-foreground">
+              A unified command center for revenue, payment health, and operational readiness across your event scope.
+            </p>
+          </div>
+          <Button asChild className="rounded-full">
+            <Link to="/admin/events">
+              Manage events
+              <ArrowRight className="size-4" />
+            </Link>
+          </Button>
         </div>
-      </div>
+      </section>
 
-      {loadError ? <InlineError message={loadError} /> : null}
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Card className="rounded-[1.5rem] border-border/70 bg-card/95">
+          <CardHeader className="pb-2">
+            <CardDescription>Gross revenue</CardDescription>
+            <CardTitle className="text-2xl">{formatCurrency(payments.summary.gross, payments.summary.currency)}</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="size-4 text-primary" />
+              {payments.summary.paid_orders} paid orders
+            </div>
+          </CardContent>
+        </Card>
 
-      {isLoading ? <AdminLoadingGrid rows={3} /> : null}
+        <Card className="rounded-[1.5rem] border-border/70 bg-card/95">
+          <CardHeader className="pb-2">
+            <CardDescription>Average order value</CardDescription>
+            <CardTitle className="text-2xl">
+              {formatCurrency(payments.summary.average_order_value, payments.summary.currency)}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            Pending: {payments.summary.pending_orders} / Failed or expired: {payments.summary.failed_or_expired_orders}
+          </CardContent>
+        </Card>
 
-      {!isLoading && overview ? (
-        <>
-          <div className="grid gap-4 xl:grid-cols-4">
-            <StatCard
-              caption={isSuperAdmin ? 'Organizers' : 'Events'}
-              helper={
-                isSuperAdmin
-                  ? 'Organizer workspaces on the platform'
-                  : `${overview.stats.published_events} published events`
-              }
-              icon={<ShieldCheck className="size-4" />}
-              value={String(
-                isSuperAdmin
-                  ? overview.stats.organizers
-                  : overview.stats.events,
-              )}
-            />
-            <StatCard
-              caption={isSuperAdmin ? 'Categories' : 'Sessions'}
-              helper={
-                isSuperAdmin
-                  ? 'Discovery categories available'
-                  : `${overview.stats.scheduled_sessions} scheduled right now`
-              }
-              icon={<CalendarRange className="size-4" />}
-              value={String(
-                isSuperAdmin
-                  ? overview.stats.categories
-                  : overview.stats.sessions,
-              )}
-            />
-            <StatCard
-              caption="Ticket Types"
-              helper="Configured sale options"
-              icon={<Ticket className="size-4" />}
-              value={String(overview.stats.ticket_types)}
-            />
-            <StatCard
-              caption={isSuperAdmin ? 'Events' : 'Drafts'}
-              helper={
-                isSuperAdmin
-                  ? `${overview.stats.published_events} published events`
-                  : 'Events still in preparation'
-              }
-              icon={<MapPin className="size-4" />}
-              value={String(
-                isSuperAdmin
-                  ? overview.stats.events
-                  : overview.stats.draft_events,
-              )}
-            />
-          </div>
+        <Card className="rounded-[1.5rem] border-border/70 bg-card/95">
+          <CardHeader className="pb-2">
+            <CardDescription>{isSuperAdmin ? "Organizers" : "Events"}</CardDescription>
+            <CardTitle className="text-2xl">
+              {isSuperAdmin ? overview.stats.organizers : overview.stats.events}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            Published: {overview.stats.published_events} / Drafts: {overview.stats.draft_events}
+          </CardContent>
+        </Card>
 
-          <Card className="app-surface rounded-[1.75rem] border-border/70">
-            <CardHeader>
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <CardTitle className="text-3xl">Payments and revenue</CardTitle>
-                  <CardDescription className="text-base">
-                    {isSuperAdmin
-                      ? 'Platform-wide payment activity and trend signals.'
-                      : 'Organizer-scoped payment activity and revenue trend.'}
-                  </CardDescription>
-                </div>
-                <Badge variant="outline" className="rounded-full">
-                  <CircleDollarSign className="mr-1.5 size-3.5" />
-                  {isSuperAdmin ? 'All organizers' : 'Your organizer'}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              {paymentErrorMessage ? (
-                <InlineError
-                  message={`${paymentErrorMessage}. Add GET /v1/admins/payments to enable this panel.`}
-                />
-              ) : null}
+        <Card className="rounded-[1.5rem] border-border/70 bg-card/95">
+          <CardHeader className="pb-2">
+            <CardDescription>Upcoming sessions</CardDescription>
+            <CardTitle className="text-2xl">{overview.upcoming_sessions.length}</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="size-4 text-primary" />
+              {overview.stats.ticket_types} ticket types configured
+            </div>
+          </CardContent>
+        </Card>
+      </section>
 
-              {payments ? (
-                <>
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-                    <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                        Gross
-                      </p>
-                      <p className="mt-2 text-2xl font-semibold text-foreground">
-                        {formatCurrency(
-                          payments.summary.gross,
-                          payments.summary.currency,
-                        )}
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                        Paid orders
-                      </p>
-                      <p className="mt-2 text-2xl font-semibold text-foreground">
-                        {payments.summary.paid_orders}
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                        Pending
-                      </p>
-                      <p className="mt-2 text-2xl font-semibold text-foreground">
-                        {payments.summary.pending_orders}
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                        Failed / expired
-                      </p>
-                      <p className="mt-2 text-2xl font-semibold text-foreground">
-                        {payments.summary.failed_or_expired_orders}
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                        Average order
-                      </p>
-                      <p className="mt-2 text-2xl font-semibold text-foreground">
-                        {formatCurrency(
-                          payments.summary.average_order_value,
-                          payments.summary.currency,
-                        )}
-                      </p>
-                    </div>
-                  </div>
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+        <Card className="app-surface rounded-[1.75rem] border-border/70">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <CircleDollarSign className="size-5 text-primary" />
+              Revenue trend
+            </CardTitle>
+            <CardDescription>Daily gross + paid orders for the last 14 days.</CardDescription>
+          </CardHeader>
+          <CardContent className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={trendData}>
+                <defs>
+                  <linearGradient id="grossFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+                <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
+                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
+                <Tooltip />
+                <Legend />
+                <Area yAxisId="left" type="monotone" dataKey="gross" stroke="#4f46e5" fill="url(#grossFill)" name="Gross" />
+                <Line yAxisId="right" type="monotone" dataKey="paidOrders" stroke="#10b981" strokeWidth={2} name="Paid orders" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
-                  <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-                    <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
-                      <p className="text-sm font-semibold text-foreground">
-                        Revenue trend (last 14 days)
-                      </p>
-                      <div className="mt-3 h-72 w-full">
-                        {paymentTrend.length === 0 ? (
-                          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                            No trend data yet.
-                          </div>
-                        ) : (
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={paymentTrend}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                              <XAxis
-                                dataKey="day"
-                                tick={{ fontSize: 12 }}
-                                tickFormatter={(value: string) =>
-                                  formatDate(value).replace(',', '')
-                                }
-                              />
-                              <YAxis tick={{ fontSize: 12 }} />
-                              <Tooltip
-                                formatter={(value: number) =>
-                                  formatCurrency(value, payments.summary.currency)
-                                }
-                                labelFormatter={(value: string) => formatDate(value)}
-                              />
-                              <Bar dataKey="gross" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        )}
-                      </div>
-                    </div>
+        <Card className="app-surface rounded-[1.75rem] border-border/70">
+          <CardHeader>
+            <CardTitle className="text-2xl">Payment status mix</CardTitle>
+            <CardDescription>Distribution from recent payment records.</CardDescription>
+          </CardHeader>
+          <CardContent className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={statusData} dataKey="count" nameKey="status" innerRadius={62} outerRadius={92} paddingAngle={2}>
+                  {statusData.map((entry, index) => (
+                    <Cell key={entry.status} fill={STATUS_COLORS[index % STATUS_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </section>
 
-                    <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
-                      <p className="text-sm font-semibold text-foreground">
-                        Latest payments
-                      </p>
-                      <div className="mt-3 space-y-2">
-                        {payments.items.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">
-                            No payment records available.
-                          </p>
-                        ) : (
-                          payments.items.map((payment) => (
-                            <div
-                              key={payment.id}
-                              className="rounded-xl border border-border/70 bg-card/80 px-3 py-3"
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0 space-y-1">
-                                  <p className="truncate text-sm font-semibold text-foreground">
-                                    {payment.order_number}
-                                  </p>
-                                  <p className="truncate text-xs text-muted-foreground">
-                                    {payment.event_title ?? 'Event unavailable'}
-                                  </p>
-                                  <p className="truncate text-xs text-muted-foreground">
-                                    {payment.customer_name} - {payment.customer_email}
-                                  </p>
-                                </div>
-                                <div className="space-y-1 text-right">
-                                  <p className="text-sm font-semibold text-foreground">
-                                    {formatCurrency(payment.amount, payment.currency)}
-                                  </p>
-                                  <Badge
-                                    variant={paymentStatusVariant(payment.status)}
-                                    className="rounded-full"
-                                  >
-                                    {formatPaymentStatusLabel(payment.status)}
-                                  </Badge>
-                                </div>
-                              </div>
-                              <p className="mt-2 text-xs text-muted-foreground">
-                                {payment.paid_at
-                                  ? `Paid ${formatDateTime(payment.paid_at)}`
-                                  : `Created ${formatDateTime(payment.created_at)}`}
-                              </p>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </>
-              ) : isPaymentsLoading ? (
-                <div className="text-sm text-muted-foreground">
-                  Loading payments analytics...
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <Card className="app-surface rounded-[1.75rem] border-border/70">
+          <CardHeader>
+            <CardTitle className="text-2xl">{isSuperAdmin ? "Top organizers by revenue" : "Top events by revenue"}</CardTitle>
+            <CardDescription>Computed from latest payment stream.</CardDescription>
+          </CardHeader>
+          <CardContent className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={topRevenueData} layout="vertical" margin={{ left: 30 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis type="number" tick={{ fontSize: 12 }} />
+                <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 12 }} />
+                <Tooltip formatter={(value: number) => formatCurrency(value, payments.summary.currency)} />
+                <Bar dataKey="gross" fill="#0ea5e9" radius={[0, 8, 8, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
-            <Card className="app-surface rounded-[1.75rem] border-border/70">
-              <CardHeader>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <CardTitle className="text-3xl">Needs attention</CardTitle>
-                    <CardDescription className="text-base">
-                      The quickest way to spot incomplete setup work.
-                    </CardDescription>
-                  </div>
-                  <Button asChild variant="outline" className="rounded-full">
-                    <Link to="/admin/events">
-                      Open events
-                      <ArrowRight className="size-4" />
-                    </Link>
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-foreground">
-                        Draft events
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Events that are not published yet.
-                      </p>
-                    </div>
-                    <p className="text-2xl font-semibold text-foreground">
-                      {overview.needs_attention.draft_events_count}
-                    </p>
-                  </div>
-                </div>
-                <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-foreground">
-                        Events without sessions
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Event records still missing bookable schedule entries.
-                      </p>
-                    </div>
-                    <p className="text-2xl font-semibold text-foreground">
-                      {overview.needs_attention.events_without_sessions_count}
-                    </p>
-                  </div>
-                </div>
-                <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-foreground">
-                        Sessions without ticket setup
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Sessions that still need sellable ticket types.
-                      </p>
-                    </div>
-                    <p className="text-2xl font-semibold text-foreground">
-                      {
-                        overview.needs_attention
-                          .sessions_without_ticket_types_count
-                      }
-                    </p>
-                  </div>
-                </div>
-                {overview.needs_attention.events_without_sessions.map(
-                  (event) => (
-                    <Link
-                      key={event.id}
-                      to="/admin/events/$eventId"
-                      params={{ eventId: event.id }}
-                      search={{ section: 'sessions' }}
-                      className="block rounded-2xl border border-dashed border-border/70 bg-background/55 px-4 py-3 text-sm no-underline transition-colors hover:border-primary/35 hover:bg-background/80"
-                    >
-                      <p className="font-medium text-foreground">
-                        {event.title}
-                      </p>
-                      <p className="text-muted-foreground">
-                        Add the first session to complete setup.
-                      </p>
-                    </Link>
-                  ),
-                )}
-                {overview.needs_attention.sessions_without_ticket_types.map(
-                  (item) => (
-                    <Link
-                      key={`${item.event_id}-${item.id}`}
-                      to="/admin/events/$eventId"
-                      params={{ eventId: item.event_id }}
-                      search={{ section: 'tickets' }}
-                      className="block rounded-2xl border border-dashed border-border/70 bg-background/55 px-4 py-3 text-sm no-underline transition-colors hover:border-primary/35 hover:bg-background/80"
-                    >
-                      <p className="font-medium text-foreground">
-                        {item.event_title}
-                      </p>
-                      <p className="text-muted-foreground">
-                        Add ticket types for the{' '}
-                        {formatDateTime(item.starts_at)} session.
-                      </p>
-                    </Link>
-                  ),
-                )}
-              </CardContent>
-            </Card>
+        <Card className="app-surface rounded-[1.75rem] border-border/70">
+          <CardHeader>
+            <CardTitle className="text-2xl">Catalog health snapshot</CardTitle>
+            <CardDescription>Current operational distribution across core objects.</CardDescription>
+          </CardHeader>
+          <CardContent className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={comparisonData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip />
+                <Line type="monotone" dataKey="value" stroke="#f97316" strokeWidth={3} dot={{ r: 4 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </section>
 
-            <Card className="app-surface rounded-[1.75rem] border-border/70">
-              <CardHeader>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <CardTitle className="text-3xl">Recent events</CardTitle>
-                    <CardDescription className="text-base">
-                      Latest event records in your current admin scope.
-                    </CardDescription>
-                  </div>
-                  <Button asChild variant="outline" className="rounded-full">
-                    <Link to="/admin/events">
-                      Open events
-                      <ArrowRight className="size-4" />
-                    </Link>
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {overview.recent_events.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No events have been created yet.
-                  </p>
-                ) : (
-                  overview.recent_events.map((event) => (
-                    <div
-                      key={event.id}
-                      className="rounded-2xl border border-border/70 bg-background/70 px-4 py-4"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-1">
-                          <p className="font-medium text-foreground">
-                            {event.title}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {event.slug}
-                          </p>
-                        </div>
-                        <Badge variant="outline">{event.status}</Badge>
-                      </div>
-                      <p className="mt-3 text-sm text-muted-foreground">
-                        {event.venue_name}, {event.city}, {event.country}
-                      </p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Created {formatDate(event.created_at)}
-                      </p>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </div>
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <Card className="app-surface rounded-[1.75rem] border-border/70">
+          <CardHeader>
+            <CardTitle className="text-2xl">Finance export</CardTitle>
+            <CardDescription>Download accounting-ready CSV per organizer and date range.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" className="rounded-full" onClick={() => applyPreset("last7")}>
+                Last 7 days
+              </Button>
+              <Button type="button" variant="outline" className="rounded-full" onClick={() => applyPreset("last30")}>
+                Last 30 days
+              </Button>
+              <Button type="button" variant="outline" className="rounded-full" onClick={() => applyPreset("thisMonth")}>
+                This month
+              </Button>
+              <Button type="button" variant="outline" className="rounded-full" onClick={() => applyPreset("lastMonth")}>
+                Last month
+              </Button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} />
+              <Input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} />
+            </div>
+            <p className="text-xs text-muted-foreground">Filename timezone: {timezone}</p>
+            {isSuperAdmin ? (
+              <Select value={organizerId} onValueChange={setOrganizerId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All organizers" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All organizers</SelectItem>
+                  {(organizersQuery.data ?? []).map((organizer) => (
+                    <SelectItem key={organizer.id} value={organizer.id}>
+                      {organizer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
+            <Button
+              type="button"
+              className="rounded-full"
+              disabled={!session?.access_token || exportMutation.isPending}
+              onClick={() => exportMutation.mutate()}
+            >
+              <Download className="size-4" />
+              {exportMutation.isPending ? "Preparing export..." : "Export CSV"}
+            </Button>
+          </CardContent>
+        </Card>
 
-          <Card className="app-surface rounded-[1.75rem] border-border/70">
-            <CardHeader>
-              <CardTitle className="text-3xl">Upcoming sessions</CardTitle>
-              <CardDescription className="text-base">
-                Scheduled sessions from the current admin scope, ordered by
-                date.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
-              {overview.upcoming_sessions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No upcoming scheduled sessions yet.
-                </p>
-              ) : (
-                overview.upcoming_sessions.map((session) => (
-                  <div
-                    key={session.id}
-                    className="rounded-2xl border border-border/70 bg-background/70 px-4 py-4"
-                  >
-                    <div className="space-y-1">
-                      <p className="font-medium text-foreground">
-                        {session.event_title}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {formatDateTime(session.starts_at)}
-                      </p>
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <Badge variant="outline">{session.status}</Badge>
-                      <Badge variant="secondary">
-                        {session.ticket_type_count} ticket types
-                      </Badge>
-                    </div>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-
-          <div
-            className={`grid gap-5 ${
-              isSuperAdmin
-                ? 'xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]'
-                : 'xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]'
-            }`}
-          >
-            <Card className="app-surface rounded-[1.75rem] border-border/70">
-              <CardHeader>
-                <CardTitle className="text-3xl">
-                  {isSuperAdmin ? 'Platform scope' : 'Publishing snapshot'}
-                </CardTitle>
-                <CardDescription className="text-base">
-                  {isSuperAdmin
-                    ? 'High-level totals from organizers, categories, and events.'
-                    : 'How your current event catalog is split between published and draft work.'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {isSuperAdmin ? (
-                  <>
-                    <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                          <Building2 className="size-4" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground">
-                            {formatCount(
-                              overview.stats.organizers,
-                              'organizer',
-                            )}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Workspaces currently on the platform.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                          <Tag className="size-4" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground">
-                            {formatCount(overview.stats.categories, 'category')}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Categories available for public discovery.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                          <CalendarRange className="size-4" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground">
-                            {formatCount(overview.stats.sessions, 'session')}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {overview.stats.scheduled_sessions} currently
-                            scheduled for sale.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="font-medium text-foreground">
-                            Published events
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Live and visible to customers right now.
-                          </p>
-                        </div>
-                        <p className="text-2xl font-semibold text-foreground">
-                          {overview.stats.published_events}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="font-medium text-foreground">
-                            Draft events
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Event records still being prepared.
-                          </p>
-                        </div>
-                        <p className="text-2xl font-semibold text-foreground">
-                          {overview.stats.draft_events}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="font-medium text-foreground">
-                            Ticket setup
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Total ticket types created across your sessions.
-                          </p>
-                        </div>
-                        <p className="text-2xl font-semibold text-foreground">
-                          {overview.stats.ticket_types}
-                        </p>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="app-surface rounded-[1.75rem] border-border/70">
-              <CardHeader>
-                <CardTitle className="text-3xl">
-                  {isSuperAdmin ? 'Organizer workspaces' : 'Session readiness'}
-                </CardTitle>
-                <CardDescription className="text-base">
-                  {isSuperAdmin
-                    ? 'Organizer summaries from the overview API.'
-                    : 'A quick look at which upcoming sessions are ready with ticket setup.'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {isSuperAdmin ? (
-                  overview.organizers.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      No organizers have been created yet.
-                    </p>
-                  ) : (
-                    overview.organizers.map((organizer) => (
-                      <div
-                        key={organizer.id}
-                        className="rounded-2xl border border-border/70 bg-background/70 px-4 py-4"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="space-y-1">
-                            <p className="font-medium text-foreground">
-                              {organizer.name}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {organizer.slug}
-                            </p>
-                          </div>
-                          <Badge variant="outline">
-                            {organizer.event_count} events
-                          </Badge>
-                        </div>
-                        <p className="mt-3 text-sm text-muted-foreground">
-                          {organizer.session_count} sessions in this workspace
-                        </p>
-                      </div>
-                    ))
-                  )
-                ) : overview.upcoming_sessions.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Add a scheduled session to start building out ticket setup.
-                  </p>
-                ) : (
-                  overview.upcoming_sessions.map((session) => (
-                    <div
-                      key={session.id}
-                      className="rounded-2xl border border-border/70 bg-background/70 px-4 py-4"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-1">
-                          <p className="font-medium text-foreground">
-                            {session.event_title}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {formatDateTime(session.starts_at)}
-                          </p>
-                        </div>
-                        <Badge
-                          variant={
-                            session.ticket_type_count > 0
-                              ? 'secondary'
-                              : 'outline'
-                          }
-                        >
-                          {session.ticket_type_count > 0
-                            ? 'Ready for sale'
-                            : 'Needs tickets'}
-                        </Badge>
-                      </div>
-                      <p className="mt-3 text-sm text-muted-foreground">
-                        {formatCount(session.ticket_type_count, 'ticket type')}
-                      </p>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </>
-      ) : null}
+        <Card className="app-surface rounded-[1.75rem] border-border/70">
+          <CardHeader>
+            <CardTitle className="text-2xl">Needs attention</CardTitle>
+            <CardDescription>Actions to keep your catalog sale-ready.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-sm">
+              Draft events: <span className="font-semibold text-foreground">{overview.needs_attention.draft_events_count}</span>
+            </div>
+            <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-sm">
+              Events without sessions: <span className="font-semibold text-foreground">{overview.needs_attention.events_without_sessions_count}</span>
+            </div>
+            <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-sm">
+              Sessions without ticket types: <span className="font-semibold text-foreground">{overview.needs_attention.sessions_without_ticket_types_count}</span>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
     </div>
   );
 }

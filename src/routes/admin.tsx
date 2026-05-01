@@ -1,29 +1,27 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { AdminAppShell } from "#/features/admin/components/AdminAppShell";
 import { canAccessAdminApp } from "#/features/admin/auth";
-import { useAuthSession } from "#/lib/auth";
+import { getAuthSession, hydrateAuthSession, useAuthSession } from "#/lib/auth";
 import { Card, CardContent } from "#/components/ui/card";
 
 export const Route = createFileRoute("/admin")({
+  beforeLoad: async () => {
+    const session = getAuthSession() ?? (await hydrateAuthSession());
+
+    if (!session) {
+      throw redirect({ to: "/login" });
+    }
+
+    if (!canAccessAdminApp(session)) {
+      throw redirect({ to: "/" });
+    }
+  },
   component: AdminLayout,
 });
 
 function AdminLayout() {
-  const navigate = useNavigate();
   const session = useAuthSession();
-
-  useEffect(() => {
-    if (!session) {
-      navigate({ to: "/login" });
-      return;
-    }
-
-    if (!canAccessAdminApp(session)) {
-      navigate({ to: "/" });
-    }
-  }, [navigate, session]);
 
   if (!session || !canAccessAdminApp(session)) {
     return (

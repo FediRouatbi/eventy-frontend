@@ -2,6 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 
 import { apiClient } from "./client";
 import type { components } from "./generated/schema";
+import { unwrapData } from "./response";
 
 const LIVE_REFETCH_INTERVAL_MS = 10_000;
 const LIVE_DETAIL_REFETCH_INTERVAL_MS = 5_000;
@@ -43,13 +44,7 @@ function normalizePublicEvent(
 }
 
 export async function listCategories() {
-  const { data, error } = await apiClient.GET("/v1/categories");
-
-  if (error || !data) {
-    throw new Error(error?.message ?? "Failed to load categories");
-  }
-
-  return data ?? [];
+  return unwrapData(await apiClient.GET("/v1/categories"), "Failed to load categories");
 }
 
 export function categoriesQueryOptions() {
@@ -76,54 +71,34 @@ export async function listEvents() {
 }
 
 export async function listPublicEvents() {
-  const { data, error } = await apiClient.GET("/v1/public/events");
-
-  if (error || !data) {
-    throw new Error(error?.message ?? "Failed to load public events");
-  }
-
+  const data = unwrapData(await apiClient.GET("/v1/public/events"), "Failed to load public events");
   return ((data as ApiPublicEventWithSessions[] | null) ?? []).map(
     normalizePublicEvent,
   );
 }
 
 export async function getPublicEventById(eventID: string) {
-  const { data, error } = await apiClient.GET("/v1/public/events/{eventID}", {
+  const data = unwrapData(await apiClient.GET("/v1/public/events/{eventID}", {
     params: {
       path: {
         eventID,
       },
     },
-  });
-
-  if (error || !data) {
-    throw new Error(error?.message ?? "Failed to load public event");
-  }
+  }), "Failed to load public event");
 
   return normalizePublicEvent(data as ApiPublicEventWithSessions);
 }
 
 export async function getPublicCategoryBySlug(categorySlug: string) {
-  const client = apiClient as {
-    GET: (
-      path: "/v1/public/categories/{categorySlug}",
-      init?: { params: { path: { categorySlug: string } } },
-    ) => Promise<{ data?: ApiPublicCategoryDetail; error?: { message?: string } }>;
-  };
-
-  const { data, error } = await client.GET("/v1/public/categories/{categorySlug}", {
+  const data = unwrapData(await apiClient.GET("/v1/public/categories/{categorySlug}", {
     params: {
       path: {
         categorySlug,
       },
     },
-  });
+  }), "Failed to load public category");
 
-  if (error || !data) {
-    throw new Error(error?.message ?? "Failed to load public category");
-  }
-
-  const payload = data;
+  const payload = data as ApiPublicCategoryDetail;
 
   return {
     ...payload,

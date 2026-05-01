@@ -80,7 +80,7 @@ export default function Header() {
         return;
       }
 
-      await logout(session.refresh_token);
+        await logout();
     },
     onSettled: () => {
       clearAuthSession();

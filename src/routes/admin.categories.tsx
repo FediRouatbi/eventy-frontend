@@ -1,6 +1,6 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { LoaderCircle, Pencil, Plus, Search, Tag, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -52,7 +52,7 @@ import {
   listAdminCategories,
   updateCategory,
 } from "#/lib/api/admin";
-import { useAuthSession } from "#/lib/auth";
+import { getAuthSession, hydrateAuthSession, useAuthSession } from "#/lib/auth";
 import type { components } from "#/lib/api/generated/schema";
 
 type Category = components["schemas"]["Category"];
@@ -65,6 +65,17 @@ type CategoryFormValues = {
 };
 
 export const Route = createFileRoute("/admin/categories")({
+  beforeLoad: async () => {
+    const session = getAuthSession() ?? (await hydrateAuthSession());
+
+    if (!session) {
+      throw redirect({ to: "/login" });
+    }
+
+    if (!isSuperAdminSession(session)) {
+      throw redirect({ to: "/admin" });
+    }
+  },
   validateSearch: (search: Record<string, unknown>) => ({
     q: typeof search.q === "string" ? search.q : "",
   }),
@@ -171,16 +182,6 @@ function AdminCategoriesPage() {
     createCategoryMutation.isPending || updateCategoryMutation.isPending;
   const loadError =
     categoriesError instanceof Error ? categoriesError.message : "";
-
-  useEffect(() => {
-    if (!session) {
-      return;
-    }
-
-    if (!isSuperAdminSession(session)) {
-      navigate({ to: "/admin" });
-    }
-  }, [navigate, session]);
 
   const filteredCategories = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();

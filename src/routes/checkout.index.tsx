@@ -4,6 +4,16 @@ import { Minus, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "#/components/ui/alert-dialog";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
 import {
@@ -43,6 +53,8 @@ export const Route = createFileRoute("/checkout/")({
   component: CheckoutPage,
 });
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function CheckoutPage() {
   const navigate = useNavigate();
   const { cancelled } = Route.useSearch();
@@ -57,6 +69,12 @@ function CheckoutPage() {
   const [customerName, setCustomerName] = useState(session?.user.name ?? "");
   const [customerEmail, setCustomerEmail] = useState(session?.user.email ?? "");
   const [hydrated, setHydrated] = useState(false);
+  const [showBuyerErrors, setShowBuyerErrors] = useState(false);
+  const [touchedBuyerFields, setTouchedBuyerFields] = useState({
+    name: false,
+    email: false,
+  });
+  const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false);
   const createOrderMutation = useMutation({
     mutationFn: (payload: {
       reservation_id: string;
@@ -71,6 +89,22 @@ function CheckoutPage() {
   });
   const isCreatingOrder =
     createOrderMutation.isPending || createPaymentSessionMutation.isPending;
+  const trimmedCustomerName = customerName.trim();
+  const trimmedCustomerEmail = customerEmail.trim();
+  const buyerNameError =
+    trimmedCustomerName.length === 0 ? "Full name is required" : "";
+  const buyerEmailError =
+    trimmedCustomerEmail.length === 0
+      ? "Email address is required"
+      : EMAIL_PATTERN.test(trimmedCustomerEmail)
+        ? ""
+        : "Enter a valid email address";
+  const isBuyerDetailsValid = !buyerNameError && !buyerEmailError;
+  const shouldShowNameError = (showBuyerErrors || touchedBuyerFields.name) && Boolean(buyerNameError);
+  const shouldShowEmailError =
+    (showBuyerErrors || touchedBuyerFields.email) && Boolean(buyerEmailError);
+  const isContinueDisabled =
+    isCreatingOrder || (Boolean(session) && !isBuyerDetailsValid);
   const sessionGroups = useMemo(() => {
     const grouped = new Map<
       string,
@@ -159,6 +193,20 @@ function CheckoutPage() {
   }, [session]);
 
   async function handleContinueToPayment() {
+    if (!session) {
+      setIsLoginPromptOpen(true);
+      return;
+    }
+
+    setShowBuyerErrors(true);
+
+    if (!isBuyerDetailsValid) {
+      toast.error("Complete buyer details", {
+        description: "Enter a valid full name and email before continuing.",
+      });
+      return;
+    }
+
     if (!cart.reservation_id || !cart.reservation_token) {
       toast.error("Your reservation is missing", {
         description: "Add tickets again before continuing.",
@@ -170,8 +218,8 @@ function CheckoutPage() {
       const order = await createOrderMutation.mutateAsync({
         reservation_id: cart.reservation_id,
         reservation_token: cart.reservation_token,
-        customer_name: customerName,
-        customer_email: customerEmail,
+        customer_name: trimmedCustomerName,
+        customer_email: trimmedCustomerEmail,
       });
 
       toast.success("Order created", {
@@ -432,14 +480,28 @@ function CheckoutPage() {
                 <Input
                   value={customerName}
                   onChange={(event) => setCustomerName(event.target.value)}
+                  onBlur={() =>
+                    setTouchedBuyerFields((current) => ({ ...current, name: true }))
+                  }
                   placeholder="Full name"
+                  aria-invalid={shouldShowNameError ? "true" : "false"}
                 />
+                {shouldShowNameError ? (
+                  <p className="text-sm text-destructive">{buyerNameError}</p>
+                ) : null}
                 <Input
                   type="email"
                   value={customerEmail}
                   onChange={(event) => setCustomerEmail(event.target.value)}
+                  onBlur={() =>
+                    setTouchedBuyerFields((current) => ({ ...current, email: true }))
+                  }
                   placeholder="Email address"
+                  aria-invalid={shouldShowEmailError ? "true" : "false"}
                 />
+                {shouldShowEmailError ? (
+                  <p className="text-sm text-destructive">{buyerEmailError}</p>
+                ) : null}
               </div>
             </div>
             <div className="mt-4 rounded-[1.35rem] border border-border/70 bg-background/70 p-5">
@@ -468,10 +530,14 @@ function CheckoutPage() {
             <Button
               size="lg"
               className="mt-5 w-full rounded-full"
-              disabled={isCreatingOrder}
+              disabled={isContinueDisabled}
               onClick={() => void handleContinueToPayment()}
             >
-              {isCreatingOrder ? "Preparing payment" : "Continue to payment"}
+              {isCreatingOrder
+                ? "Preparing payment"
+                : session
+                  ? "Continue to payment"
+                  : "Login to continue"}
             </Button>
             <Button
               type="button"
@@ -571,6 +637,29 @@ function CheckoutPage() {
           </div>
         </section>
       ) : null}
+
+      <AlertDialog open={isLoginPromptOpen} onOpenChange={setIsLoginPromptOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Login required</AlertDialogTitle>
+            <AlertDialogDescription>
+              You need to sign in before you can continue to payment.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Not now</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() =>
+                navigate({
+                  to: "/login",
+                })
+              }
+            >
+              Go to login
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }

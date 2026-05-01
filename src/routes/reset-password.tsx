@@ -27,12 +27,12 @@ import {
 } from "#/components/ui/input-otp";
 import { Label } from "#/components/ui/label";
 import { resetPassword } from "#/lib/api/auth";
-import { getAuthSession } from "#/lib/auth";
+import { getAuthSession, hydrateAuthSession } from "#/lib/auth";
 import { canAccessAdminApp } from "#/features/admin/auth";
 
 export const Route = createFileRoute("/reset-password")({
-  beforeLoad: () => {
-    const session = getAuthSession();
+  beforeLoad: async () => {
+    const session = getAuthSession() ?? (await hydrateAuthSession());
 
     if (session) {
       throw redirect({
@@ -156,7 +156,7 @@ function ResetPasswordPage() {
           </CardTitle>
           <CardDescription className="max-w-xl text-base leading-8">
             Enter the code from your email and choose a new password for your
-            Eventy account.
+            Eventy account, no matter your role.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5 px-0">

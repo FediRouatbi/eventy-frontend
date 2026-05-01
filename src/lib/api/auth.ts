@@ -1,58 +1,7 @@
 import { apiClient, createApiClient } from "#/lib/api/client";
 import { loadCurrentUser, refreshAuthSession } from "#/lib/auth";
 import type { components } from "#/lib/api/generated/schema";
-
-type ApiErrorShape = {
-  message?: string;
-  error?: string;
-};
-
-function getErrorMessage(payload: unknown, fallback: string) {
-  if (
-    payload &&
-    typeof payload === "object" &&
-    "message" in payload &&
-    typeof (payload as { message?: unknown }).message === "string"
-  ) {
-    return (payload as { message: string }).message;
-  }
-
-  if (
-    payload &&
-    typeof payload === "object" &&
-    "error" in payload &&
-    typeof (payload as { error?: unknown }).error === "string"
-  ) {
-    return (payload as { error: string }).error;
-  }
-
-  return fallback;
-}
-
-function unwrapData<T>(
-  payload: {
-    data?: T;
-    error?: ApiErrorShape;
-  },
-  fallback: string,
-) {
-  if (payload.error || !payload.data) {
-    throw new Error(getErrorMessage(payload.error, fallback));
-  }
-
-  return payload.data;
-}
-
-function assertSuccess(
-  payload: {
-    error?: ApiErrorShape;
-  },
-  fallback: string,
-) {
-  if (payload.error) {
-    throw new Error(getErrorMessage(payload.error, fallback));
-  }
-}
+import { assertSuccess, unwrapData } from "./response";
 
 export async function login(input: components["schemas"]["LoginInput"]) {
   return unwrapData(
@@ -88,13 +37,9 @@ export async function getMe(accessToken?: string) {
   return loadCurrentUser();
 }
 
-export async function logout(refreshToken: string) {
+export async function logout() {
   assertSuccess(
-    await apiClient.POST("/v1/auth/logout", {
-      body: {
-        refresh_token: refreshToken,
-      },
-    }),
+    await apiClient.POST("/v1/auth/logout"),
     "Failed to sign out",
   );
 }
@@ -154,10 +99,7 @@ export async function resetPassword(
 
 export async function changePassword(
   accessToken: string,
-  input: {
-  current_password: string;
-  new_password: string;
-},
+  input: components["schemas"]["ChangePasswordInput"],
 ) {
   const client = createApiClient(accessToken);
   return unwrapData(
@@ -186,14 +128,9 @@ export async function updateProfile(
 
 export async function deleteProfile(
   accessToken: string,
-  input: { current_password: string },
+  input: components["schemas"]["DeleteAccountInput"],
 ) {
-  const client = createApiClient(accessToken) as {
-    DELETE: (
-      path: "/v1/users/me",
-      init?: { body?: { current_password: string } },
-    ) => Promise<{ data?: unknown; error?: ApiErrorShape }>;
-  };
+  const client = createApiClient(accessToken);
 
   assertSuccess(
     await client.DELETE("/v1/users/me", {

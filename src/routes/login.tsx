@@ -14,6 +14,7 @@ import {
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
 import { Separator } from "#/components/ui/separator";
+import { isAdminRole } from "#/features/admin/auth";
 import { getMe, login } from "#/lib/api/auth";
 import { saveAuthSession, useAuthSession } from "#/lib/auth";
 
@@ -34,8 +35,13 @@ function LoginPage() {
       await getMe();
       return authResult;
     },
-    onSuccess: () => {
-      navigate({ to: "/admin" });
+    onSuccess: async (authResult) => {
+      if (isAdminRole(authResult.user.role)) {
+        await navigate({ to: "/admin" });
+        return;
+      }
+
+      await navigate({ to: "/" });
     },
     onError: (error) => {
       setErrorMessage(
@@ -55,15 +61,13 @@ function LoginPage() {
       <Card className="border-none bg-transparent shadow-none">
         <CardHeader className="px-0">
           <Badge variant="outline" className="w-fit rounded-full">
-            Admin access
+            Account access
           </Badge>
           <CardTitle className="font-serif text-5xl font-semibold leading-tight">
             Sign in to the Eventy workspace.
           </CardTitle>
           <CardDescription className="max-w-xl text-base leading-8">
-            This route stays out of the public navigation, but it now connects
-            to the live auth API so organizer admins and super admins can enter
-            the dashboard foundation.
+            Sign in with any Eventy account to continue to your workspace.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5 px-0">
@@ -76,8 +80,7 @@ function LoginPage() {
                     Protected access
                   </p>
                   <p className="text-sm leading-6 text-muted-foreground">
-                    Tokens are stored locally so we can build the dashboard
-                    experience incrementally from a real session.
+                    Sessions stay secure with HttpOnly cookies and in-memory access tokens.
                   </p>
                 </div>
               </CardContent>
@@ -88,7 +91,7 @@ function LoginPage() {
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
                   {session
                     ? `Signed in as ${session.user.email}`
-                    : "No active admin session on this browser."}
+                    : "No active session on this browser."}
                 </p>
               </CardContent>
             </Card>
@@ -101,9 +104,9 @@ function LoginPage() {
           <Badge variant="secondary" className="w-fit rounded-full">
             Authentication
           </Badge>
-          <CardTitle className="font-serif text-3xl">Admin login</CardTitle>
+          <CardTitle className="font-serif text-3xl">Login</CardTitle>
           <CardDescription>
-            Use an organizer admin or super admin account from the API.
+            Use your Eventy email and password.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -115,7 +118,7 @@ function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder="organizer@example.com"
+                placeholder="you@example.com"
                 autoComplete="email"
                 required
               />
@@ -155,7 +158,7 @@ function LoginPage() {
                   Signing in
                 </>
               ) : (
-                "Continue to dashboard"
+                "Continue"
               )}
             </Button>
           </form>
@@ -186,8 +189,7 @@ function LoginPage() {
           </div>
 
           <div className="mt-5 text-sm leading-6 text-muted-foreground">
-            This route stays out of the public navigation and serves as the
-            entry point to the admin workspace.
+            After sign-in, you'll be sent to the right area based on your role.
           </div>
         </CardContent>
       </Card>

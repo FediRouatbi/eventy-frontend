@@ -1,4 +1,4 @@
-import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, notFound } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { toast } from "sonner";
@@ -10,9 +10,13 @@ import {
   formatTimeRangeLabel,
 } from "#/features/events/display";
 import {
+  checkoutOrderByStripeSessionQueryOptions,
   checkoutOrderQueryOptions,
   createStripeCheckoutSession,
+  getCheckoutOrderByStripeSession,
+  getCheckoutOrder,
 } from "#/lib/api/orders";
+import { clearCart } from "#/lib/cart";
 import { queryClient } from "#/lib/query-client";
 
 export const Route = createFileRoute("/checkout/success")({
@@ -20,8 +24,20 @@ export const Route = createFileRoute("/checkout/success")({
     orderId:
       typeof search.orderId === "string" ? search.orderId : "",
     token: typeof search.token === "string" ? search.token : "",
+    session_id: typeof search.session_id === "string" ? search.session_id : "",
   }),
   loader: async ({ search }) => {
+    if (search.session_id) {
+      try {
+        await queryClient.ensureQueryData(
+          checkoutOrderByStripeSessionQueryOptions(search.session_id),
+        );
+        return;
+      } catch {
+        throw notFound();
+      }
+    }
+
     if (!search.orderId || !search.token) {
       throw notFound();
     }
@@ -38,26 +54,53 @@ export const Route = createFileRoute("/checkout/success")({
 });
 
 function CheckoutSuccessPage() {
-  const { orderId, token } = Route.useSearch();
-  const { data: order } = useSuspenseQuery(
-    checkoutOrderQueryOptions(orderId, token),
-  );
+  const { orderId, token, session_id } = Route.useSearch();
+  const isStripeSessionMode = Boolean(session_id);
+  const orderByStripeSessionQuery = useQuery({
+    queryKey: ["public", "stripe-sessions", session_id, "checkout-order"],
+    enabled: isStripeSessionMode,
+    queryFn: () => getCheckoutOrderByStripeSession(session_id),
+  });
+  const orderByTokenQuery = useQuery({
+    queryKey: ["public", "checkout-orders", orderId, token],
+    enabled: !isStripeSessionMode && Boolean(orderId && token),
+    queryFn: () => getCheckoutOrder(orderId, token),
+  });
+  const activeQuery = isStripeSessionMode ? orderByStripeSessionQuery : orderByTokenQuery;
+  const order = activeQuery.data;
   const startPaymentMutation = useMutation({
-    mutationFn: () => createStripeCheckoutSession(orderId, token),
+    mutationFn: () => {
+      if (!orderId || !token) {
+        throw new Error("Missing order reference to restart payment.");
+      }
+
+      return createStripeCheckoutSession(orderId, token);
+    },
   });
   const isStartingPayment = startPaymentMutation.isPending;
 
   useEffect(() => {
+    if (!order) {
+      return;
+    }
+
+    if (order.status === "paid") {
+      void clearCart();
+    }
+  }, [order]);
+
+  useEffect(() => {
+    if (!order) {
+      return;
+    }
+
     if (order.status === "paid") {
       return;
     }
 
-    const queryKey = [
-      "public",
-      "checkout-orders",
-      orderId,
-      token,
-    ] as const;
+    const queryKey = isStripeSessionMode
+      ? (["public", "stripe-sessions", session_id, "checkout-order"] as const)
+      : (["public", "checkout-orders", orderId, token] as const);
 
     const refetch = () => {
       void queryClient.refetchQueries({ queryKey, exact: true });
@@ -72,9 +115,13 @@ function CheckoutSuccessPage() {
       window.clearInterval(poll);
       window.removeEventListener("focus", refetch);
     };
-  }, [order.status, orderId, token]);
+  }, [isStripeSessionMode, order, orderId, session_id, token]);
 
   async function handlePayNow() {
+    if (isStripeSessionMode) {
+      return;
+    }
+
     try {
       const stripeSession = await startPaymentMutation.mutateAsync();
       window.location.assign(stripeSession.checkout_url);
@@ -86,18 +133,47 @@ function CheckoutSuccessPage() {
     }
   }
 
+  if (activeQuery.isLoading || !order) {
+    return (
+      <main className="mx-auto max-w-5xl px-4 pb-12 pt-10 sm:pt-14">
+        <section className="rounded-[2rem] border border-border/70 bg-card/90 p-6 shadow-sm sm:p-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
+            Checkout status
+          </p>
+          <h1 className="mt-3 font-serif text-4xl font-semibold text-foreground">
+            Loading order status
+          </h1>
+          <p className="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground">
+            Please wait while we confirm your latest payment state.
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  const isRetryAllowed = !isStripeSessionMode && order.status !== "paid";
+  const title =
+    order.status === "paid"
+      ? "Payment confirmed"
+      : isStripeSessionMode
+        ? "Payment processing"
+        : "Your order is ready for payment";
+  const kicker = isStripeSessionMode ? "Payment status" : "Checkout ready";
+  const helperText = isStripeSessionMode
+    ? `Reference ${order.order_number}. If status is still pending, wait a moment and refresh.`
+    : `We created a pending order from your reserved tickets. The hold stays active until ${new Date(order.expires_at).toLocaleTimeString()}.`;
+
   return (
     <main className="mx-auto max-w-5xl px-4 pb-12 pt-10 sm:pt-14">
       <section className="rounded-[2rem] border border-border/70 bg-card/90 p-6 shadow-sm sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
-          Checkout ready
+          {kicker}
         </p>
         <h1 className="mt-3 font-serif text-4xl font-semibold text-foreground">
-          Your order is ready for payment
+          {title}
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground">
-          We created a pending order from your reserved tickets. The hold stays
-          active until {new Date(order.expires_at).toLocaleTimeString()}.
+          {helperText}
         </p>
       </section>
 
@@ -193,22 +269,35 @@ function CheckoutSuccessPage() {
           </div>
 
           <p className="mt-4 text-sm leading-7 text-muted-foreground">
-            Continue to Stripe Checkout to complete payment. You'll be returned
-            here afterwards to confirm the status.
+            {isRetryAllowed
+              ? "Continue to Stripe Checkout to complete payment. You'll be returned here afterwards to confirm the status."
+              : "Refresh this page if payment confirmation takes a few seconds to sync."}
           </p>
 
           <div className="mt-5 flex flex-wrap gap-3">
-            <Button
-              type="button"
-              className="rounded-full"
-              disabled={isStartingPayment}
-              onClick={() => void handlePayNow()}
-            >
-              {isStartingPayment ? "Opening Stripe" : "Pay now"}
-            </Button>
+            {isRetryAllowed ? (
+              <Button
+                type="button"
+                className="rounded-full"
+                disabled={isStartingPayment}
+                onClick={() => void handlePayNow()}
+              >
+                {isStartingPayment ? "Opening Stripe" : "Pay now"}
+              </Button>
+            ) : null}
             <Button asChild variant="outline" className="rounded-full bg-background">
               <Link to="/events">Browse more events</Link>
             </Button>
+            {isStripeSessionMode ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full bg-background"
+                onClick={() => void activeQuery.refetch()}
+              >
+                Refresh status
+              </Button>
+            ) : null}
           </div>
         </aside>
       </section>

@@ -1,10 +1,6 @@
 import { apiClient, createApiClient } from "#/lib/api/client";
 import type { components } from "#/lib/api/generated/schema";
-
-type ApiErrorShape = {
-  message?: string;
-  error?: string;
-};
+import { assertSuccess, getApiErrorMessage, unwrapData } from "./response";
 
 type Category = components["schemas"]["Category"];
 type Organizer = components["schemas"]["Organizer"];
@@ -23,175 +19,26 @@ type CreateEventSessionInput = components["schemas"]["CreateEventSessionInput"];
 type UpdateEventSessionInput = components["schemas"]["UpdateEventSessionInput"];
 type CreateTicketTypeInput = components["schemas"]["CreateTicketTypeInput"];
 type UpdateTicketTypeInput = components["schemas"]["UpdateTicketTypeInput"];
+type OrganizerListItem = components["schemas"]["OrganizerListItem"];
+type OrganizerDetail = components["schemas"]["OrganizerDetail"];
+type UpdateOrganizerInput = components["schemas"]["UpdateOrganizerInput"];
+type UpdateOrganizerAdminInput = components["schemas"]["UpdateOrganizerAdminInput"];
+type UpdateCategoryInput = components["schemas"]["UpdateCategoryInput"];
 
-type OrganizerSummary = {
-  id: string;
-  name: string;
-  slug: string;
-  admin_count: number;
-  event_count: number;
-  session_count: number;
-  created_at: string;
-  updated_at: string;
-};
-
-type OrganizerListItem = OrganizerSummary & {
-  admin: OrganizerAdmin | null;
-};
-
-type OrganizerManagedEvent = {
-  id: string;
-  title: string;
-  slug: string;
-  status: "draft" | "published" | "cancelled";
-  currency: string;
-  city: string;
-  country: string;
-  session_count: number;
-  ticket_type_count: number;
-  next_session_starts_at?: string;
-  created_at: string;
-  updated_at: string;
-};
-
-type OrganizerDetail = {
-  organizer: OrganizerListItem;
-  events: OrganizerManagedEvent[] | null;
-};
-
-type UpdateOrganizerInput = {
-  organizer_name: string;
-  organizer_slug: string;
-};
-
-type UpdateOrganizerAdminInput = {
-  admin_name: string;
-  admin_email: string;
-};
-
-type UpdateCategoryInput = {
-  name: string;
-  slug: string;
-  description?: string;
-  image_url?: string;
-};
-
-export type UpdateAdminEventInput = {
-  category_id: string;
-  title: string;
-  slug: string;
-  description: string;
-  venue_name: string;
-  venue_address: string;
-  city: string;
-  country: string;
-  latitude?: number;
-  longitude?: number;
-  banner_url?: string;
-  poster_url?: string;
-  status: "draft" | "published" | "cancelled";
-  currency: string;
-  is_featured: boolean;
-};
-
-export type AdminEventListItem = {
-  id: string;
-  organizer_id: string;
-  organizer_name: string;
-  organizer_slug: string;
-  category_id: string;
-  category_name: string;
-  category_slug: string;
-  title: string;
-  slug: string;
-  description: string;
-  venue_name: string;
-  venue_address: string;
-  city: string;
-  country: string;
-  latitude?: number;
-  longitude?: number;
-  banner_url?: string;
-  poster_url?: string;
-  status: "draft" | "published" | "cancelled";
-  currency: string;
-  is_featured: boolean;
-  created_at: string;
-  updated_at: string;
-  session_count: number;
-  ticket_type_count: number;
-  next_session_starts_at?: string;
-  has_sessions_without_tickets: boolean;
-};
-
-export type AdminOverview = {
-  scope: "super_admin" | "organizer_admin";
-  stats: {
-    events: number;
-    published_events: number;
-    draft_events: number;
-    sessions: number;
-    scheduled_sessions: number;
-    ticket_types: number;
-    categories: number;
-    organizers: number;
-  };
-  needs_attention: {
-    draft_events_count: number;
-    events_without_sessions_count: number;
-    sessions_without_ticket_types_count: number;
-    events_without_sessions: Array<{
-      id: string;
-      title: string;
-      slug: string;
-      created_at: string;
-    }>;
-    sessions_without_ticket_types: Array<{
-      id: string;
-      event_id: string;
-      event_title: string;
-      starts_at: string;
-      status: "scheduled" | "completed" | "cancelled";
-    }>;
-  };
-  recent_events: Array<{
-    id: string;
-    organizer_id: string;
-    category_id: string;
-    title: string;
-    slug: string;
-    status: "draft" | "published" | "cancelled";
-    venue_name: string;
-    city: string;
-    country: string;
-    organizer_name: string;
-    category_name: string;
-    created_at: string;
-    updated_at: string;
-  }>;
-  upcoming_sessions: Array<{
-    id: string;
-    event_id: string;
-    event_title: string;
-    event_slug: string;
-    event_currency: string;
-    status: "scheduled" | "completed" | "cancelled";
-    starts_at: string;
-    ticket_type_count: number;
-  }>;
-  organizers: Array<{
-    id: string;
-    name: string;
-    slug: string;
-    event_count: number;
-    session_count: number;
-  }>;
-};
+export type UpdateAdminEventInput = components["schemas"]["UpdateEventInput"];
+export type AdminEventListItem = components["schemas"]["Event"];
+export type AdminOverview = components["schemas"]["AdminOverview"];
 
 export type AdminPaymentsResponse = components["schemas"]["AdminPayments"];
 export type AdminPaymentItem = components["schemas"]["AdminPaymentItem"];
 export type AdminPaymentTrendPoint = components["schemas"]["AdminPaymentTrend"];
 export type AdminPaymentStatus = AdminPaymentItem["status"];
+export type AdminPaymentsExportOptions = {
+  from: string;
+  to: string;
+  organizer_id?: string;
+  timezone?: string;
+};
 
 function normalizeAdminOverview(overview: AdminOverview): AdminOverview {
   return {
@@ -209,55 +56,8 @@ function normalizeAdminOverview(overview: AdminOverview): AdminOverview {
   };
 }
 
-function getErrorMessage(payload: unknown, fallback: string) {
-  if (
-    payload &&
-    typeof payload === "object" &&
-    "message" in payload &&
-    typeof (payload as { message?: unknown }).message === "string"
-  ) {
-    return (payload as { message: string }).message;
-  }
-
-  if (
-    payload &&
-    typeof payload === "object" &&
-    "error" in payload &&
-    typeof (payload as { error?: unknown }).error === "string"
-  ) {
-    return (payload as { error: string }).error;
-  }
-
-  return fallback;
-}
-
 function getClient(accessToken?: string) {
   return accessToken ? createApiClient(accessToken) : apiClient;
-}
-
-function unwrapData<T>(
-  payload: {
-    data?: T;
-    error?: ApiErrorShape;
-  },
-  fallback: string,
-) {
-  if (payload.error || !payload.data) {
-    throw new Error(getErrorMessage(payload.error, fallback));
-  }
-
-  return payload.data;
-}
-
-function assertSuccess(
-  payload: {
-    error?: ApiErrorShape;
-  },
-  fallback: string,
-) {
-  if (payload.error) {
-    throw new Error(getErrorMessage(payload.error, fallback));
-  }
 }
 
 export async function listAdminCategories(accessToken: string) {
@@ -312,11 +112,7 @@ export async function deleteCategory(accessToken: string, categoryId: string) {
 }
 
 export async function getAdminOverview(accessToken: string) {
-  const client = getClient(accessToken) as {
-    GET: (
-      path: "/v1/admins/overview",
-    ) => Promise<{ data?: AdminOverview; error?: ApiErrorShape }>;
-  };
+  const client = getClient(accessToken);
 
   return normalizeAdminOverview(
     unwrapData(await client.GET("/v1/admins/overview"), "Failed to load overview"),
@@ -340,12 +136,55 @@ export async function getAdminPayments(
   );
 }
 
-export async function listAdminEvents(accessToken: string) {
-  const client = getClient(accessToken) as {
-    GET: (
-      path: "/v1/events",
-    ) => Promise<{ data?: AdminEventListItem[]; error?: ApiErrorShape }>;
+function getFileNameFromContentDisposition(headerValue: string | null) {
+  if (!headerValue) {
+    return "finance-export.csv";
+  }
+
+  const utf8Match = headerValue.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1]);
+  }
+
+  const plainMatch = headerValue.match(/filename=\"?([^\";]+)\"?/i);
+  if (plainMatch?.[1]) {
+    return plainMatch[1];
+  }
+
+  return "finance-export.csv";
+}
+
+export async function exportAdminPaymentsCsv(
+  accessToken: string,
+  options: AdminPaymentsExportOptions,
+) {
+  const client = getClient(accessToken);
+  const payload = await client.GET("/v1/admins/payments/export", {
+    params: {
+      query: {
+        from: options.from,
+        to: options.to,
+        organizer_id: options.organizer_id,
+        timezone: options.timezone,
+      },
+    },
+    parseAs: "blob",
+  });
+
+  if (payload.error || !payload.data) {
+    throw new Error(getApiErrorMessage(payload.error, "Failed to export payments CSV"));
+  }
+
+  return {
+    blob: payload.data,
+    filename: getFileNameFromContentDisposition(
+      payload.response.headers.get("Content-Disposition"),
+    ),
   };
+}
+
+export async function listAdminEvents(accessToken: string) {
+  const client = getClient(accessToken);
 
   return unwrapData(await client.GET("/v1/events"), "Failed to load events");
 }
@@ -364,11 +203,7 @@ export async function createEvent(
 }
 
 export async function listAdminOrganizers(accessToken: string) {
-  const client = getClient(accessToken) as {
-    GET: (
-      path: "/v1/admins/organizers",
-    ) => Promise<{ data?: OrganizerListItem[]; error?: ApiErrorShape }>;
-  };
+  const client = getClient(accessToken);
 
   return unwrapData(
     await client.GET("/v1/admins/organizers"),
@@ -393,18 +228,7 @@ export async function getAdminOrganizer(
   accessToken: string,
   organizerId: string,
 ) {
-  const client = getClient(accessToken) as {
-    GET: (
-      path: "/v1/admins/organizers/{organizerID}",
-      init: {
-        params: {
-          path: {
-            organizerID: string;
-          };
-        };
-      },
-    ) => Promise<{ data?: OrganizerDetail; error?: ApiErrorShape }>;
-  };
+  const client = getClient(accessToken);
 
   return unwrapData(
     await client.GET("/v1/admins/organizers/{organizerID}", {
@@ -423,19 +247,7 @@ export async function updateOrganizer(
   organizerId: string,
   input: UpdateOrganizerInput,
 ) {
-  const client = getClient(accessToken) as {
-    PATCH: (
-      path: "/v1/admins/organizers/{organizerID}",
-      init: {
-        params: {
-          path: {
-            organizerID: string;
-          };
-        };
-        body: UpdateOrganizerInput;
-      },
-    ) => Promise<{ data?: Organizer; error?: ApiErrorShape }>;
-  };
+  const client = getClient(accessToken);
 
   return unwrapData(
     await client.PATCH("/v1/admins/organizers/{organizerID}", {
@@ -450,47 +262,20 @@ export async function updateOrganizer(
   );
 }
 
-export async function getOrganizerAdmin(
-  accessToken: string,
-  organizerId: string,
-) {
-  const client = getClient(accessToken);
-  return unwrapData(
-    await client.GET("/v1/admins/organizers/{organizerID}/admin", {
-      params: {
-        path: {
-          organizerID: organizerId,
-        },
-      },
-    }),
-    "Failed to load organizer admin",
-  );
-}
-
 export async function updateOrganizerAdmin(
   accessToken: string,
   organizerId: string,
+  adminId: string,
   input: UpdateOrganizerAdminInput,
 ) {
-  const client = getClient(accessToken) as {
-    PATCH: (
-      path: "/v1/admins/organizers/{organizerID}/admin",
-      init: {
-        params: {
-          path: {
-            organizerID: string;
-          };
-        };
-        body: UpdateOrganizerAdminInput;
-      },
-    ) => Promise<{ data?: OrganizerAdmin; error?: ApiErrorShape }>;
-  };
+  const client = getClient(accessToken);
 
   return unwrapData(
-    await client.PATCH("/v1/admins/organizers/{organizerID}/admin", {
+    await client.PATCH("/v1/admins/organizers/{organizerID}/admins/{adminID}", {
       params: {
         path: {
           organizerID: organizerId,
+          adminID: adminId,
         },
       },
       body: input,
@@ -502,13 +287,15 @@ export async function updateOrganizerAdmin(
 export async function deleteOrganizerAdmin(
   accessToken: string,
   organizerId: string,
+  adminId: string,
 ) {
   const client = getClient(accessToken);
   assertSuccess(
-    await client.DELETE("/v1/admins/organizers/{organizerID}/admin", {
+    await client.DELETE("/v1/admins/organizers/{organizerID}/admins/{adminID}", {
       params: {
         path: {
           organizerID: organizerId,
+          adminID: adminId,
         },
       },
     }),

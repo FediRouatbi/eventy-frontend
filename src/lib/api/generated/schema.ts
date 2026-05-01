@@ -92,6 +92,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admins/payments/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export admin payments CSV
+         * @description Exports payment records as CSV for accounting, scoped by admin role and optional organizer/date filters.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Start date in YYYY-MM-DD format (default: 29 days before today). */
+                    from?: string;
+                    /** @description End date in YYYY-MM-DD format (default: today). */
+                    to?: string;
+                    /** @description Optional organizer filter for super admins. Organizer admins are always scoped to their organizer. */
+                    organizer_id?: string;
+                    /** @description IANA timezone label used in the exported filename (example: Africa/Lagos). Default: UTC. */
+                    timezone?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description CSV export */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/csv": string;
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                401: components["responses"]["ErrorResponse"];
+                403: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admins/organizers": {
         parameters: {
             query?: never;
@@ -781,6 +833,295 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/public/reservations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create or update ticket reservation
+         * @description Creates a new reservation or updates an existing reservation when reservation_id and reservation_token are provided.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpsertTicketReservationInput"];
+                };
+            };
+            responses: {
+                /** @description Reservation upserted */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TicketReservation"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                409: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/reservations/{reservationID}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get ticket reservation */
+        get: {
+            parameters: {
+                query: {
+                    token: string;
+                };
+                header?: never;
+                path: {
+                    reservationID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Reservation details */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TicketReservation"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
+        put?: never;
+        post?: never;
+        /** Delete ticket reservation */
+        delete: {
+            parameters: {
+                query: {
+                    token: string;
+                };
+                header?: never;
+                path: {
+                    reservationID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Reservation deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                400: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/checkout-orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create checkout order */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateCheckoutOrderInput"];
+                };
+            };
+            responses: {
+                /** @description Checkout order created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CheckoutOrder"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/checkout-orders/{orderID}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get checkout order */
+        get: {
+            parameters: {
+                query: {
+                    token: string;
+                };
+                header?: never;
+                path: {
+                    orderID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Checkout order details */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CheckoutOrder"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/checkout-orders/{orderID}/stripe-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Stripe checkout session */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    orderID: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateStripeCheckoutSessionInput"];
+                };
+            };
+            responses: {
+                /** @description Stripe checkout session created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StripeCheckoutSessionResponse"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                409: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+                501: components["responses"]["ErrorResponse"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/stripe-sessions/{stripeSessionID}/checkout-order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get checkout order by Stripe session */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    stripeSessionID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Checkout order summary */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CheckoutOrderSummary"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
+                404: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/events": {
         parameters: {
             query?: never;
@@ -1433,6 +1774,8 @@ export interface paths {
                 /** @description Authenticated successfully */
                 200: {
                     headers: {
+                        /** @description HttpOnly refresh token cookie. */
+                        "Set-Cookie"?: string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -1461,7 +1804,7 @@ export interface paths {
         put?: never;
         /**
          * Refresh session
-         * @description Rotates the refresh token and returns a new access token plus refresh token.
+         * @description Rotates the refresh token and returns a new access token plus refresh token. The refresh token can be sent in request body or HttpOnly cookie.
          */
         post: {
             parameters: {
@@ -1470,7 +1813,7 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody: {
+            requestBody?: {
                 content: {
                     "application/json": components["schemas"]["RefreshTokenInput"];
                 };
@@ -1479,6 +1822,8 @@ export interface paths {
                 /** @description Session refreshed successfully */
                 200: {
                     headers: {
+                        /** @description HttpOnly refresh token cookie. */
+                        "Set-Cookie"?: string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -1644,7 +1989,7 @@ export interface paths {
         put?: never;
         /**
          * Logout user
-         * @description Revokes the current refresh session.
+         * @description Revokes the current refresh session for the authenticated user. The refresh token can be sent in request body or HttpOnly cookie.
          */
         post: {
             parameters: {
@@ -1653,7 +1998,7 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody: {
+            requestBody?: {
                 content: {
                     "application/json": components["schemas"]["LogoutInput"];
                 };
@@ -2306,11 +2651,13 @@ export interface components {
             /** @example secret123 */
             current_password: string;
         };
+        /** @description Refresh token payload. Optional when refresh token is supplied by HttpOnly cookie. */
         RefreshTokenInput: {
-            refresh_token: string;
+            refresh_token?: string;
         };
+        /** @description Logout payload. Optional when refresh token is supplied by HttpOnly cookie. */
         LogoutInput: {
-            refresh_token: string;
+            refresh_token?: string;
         };
         ForgotPasswordInput: {
             /**
@@ -2784,6 +3131,32 @@ export interface components {
             /** Format: date-time */
             session_ends_at: string;
         };
+        CheckoutOrder: {
+            /** Format: uuid */
+            id: string;
+            token: string;
+            /** Format: uuid */
+            reservation_id: string;
+            order_number: string;
+            status: string;
+            customer_name: string;
+            /** Format: email */
+            customer_email: string;
+            currency: string;
+            subtotal: number;
+            /** Format: date-time */
+            expires_at: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            stripe_checkout_session_id?: string;
+            /** Format: date-time */
+            paid_at?: string | null;
+            /** Format: date-time */
+            tickets_emailed_at?: string | null;
+            items: components["schemas"]["CheckoutOrderItem"][];
+        };
         CheckoutOrderSummary: {
             /** Format: uuid */
             id: string;
@@ -2806,6 +3179,68 @@ export interface components {
             /** Format: date-time */
             tickets_emailed_at?: string | null;
             items: components["schemas"]["CheckoutOrderItem"][];
+        };
+        CreateCheckoutOrderInput: {
+            /** Format: uuid */
+            reservation_id: string;
+            reservation_token: string;
+            customer_name: string;
+            /** Format: email */
+            customer_email: string;
+        };
+        CreateStripeCheckoutSessionInput: {
+            order_token: string;
+        };
+        StripeCheckoutSessionResponse: {
+            session_id: string;
+            checkout_url: string;
+            /** Format: uuid */
+            order_id: string;
+            order_number: string;
+            /** Format: date-time */
+            expires_at: string;
+        };
+        UpsertTicketReservationItemInput: {
+            /** Format: uuid */
+            ticket_type_id: string;
+            quantity: number;
+        };
+        UpsertTicketReservationInput: {
+            /** Format: uuid */
+            reservation_id?: string;
+            reservation_token?: string;
+            items: components["schemas"]["UpsertTicketReservationItemInput"][];
+        };
+        TicketReservationItem: {
+            /** Format: uuid */
+            ticket_type_id: string;
+            ticket_type_name: string;
+            quantity: number;
+            unit_price: number;
+            currency: string;
+            max_per_order: number;
+            available_quantity: number;
+            /** Format: uuid */
+            event_id: string;
+            event_title: string;
+            /** Format: uuid */
+            session_id: string;
+            /** Format: date-time */
+            session_starts_at: string;
+            /** Format: date-time */
+            session_ends_at: string;
+        };
+        TicketReservation: {
+            /** Format: uuid */
+            id: string;
+            token: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            items: components["schemas"]["TicketReservationItem"][];
         };
         Ticket: {
             /** Format: uuid */

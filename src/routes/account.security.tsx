@@ -18,11 +18,11 @@ import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
 import { isAdminRole } from "#/features/admin/auth";
 import { changePassword } from "#/lib/api/auth";
-import { getAuthSession, useAuthSession } from "#/lib/auth";
+import { getAuthSession, hydrateAuthSession, useAuthSession } from "#/lib/auth";
 
 export const Route = createFileRoute("/account/security")({
-  beforeLoad: () => {
-    const session = getAuthSession();
+  beforeLoad: async () => {
+    const session = getAuthSession() ?? (await hydrateAuthSession());
 
     if (!session) {
       throw redirect({ to: "/login" });

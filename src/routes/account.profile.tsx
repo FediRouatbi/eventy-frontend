@@ -42,13 +42,14 @@ import { deleteProfile, getMe, updateProfile } from "#/lib/api/auth";
 import {
   clearAuthSession,
   getAuthSession,
+  hydrateAuthSession,
   updateAuthSessionUser,
   useAuthSession,
 } from "#/lib/auth";
 
 export const Route = createFileRoute("/account/profile")({
-  beforeLoad: () => {
-    const session = getAuthSession();
+  beforeLoad: async () => {
+    const session = getAuthSession() ?? (await hydrateAuthSession());
 
     if (!session) {
       throw redirect({ to: "/login" });

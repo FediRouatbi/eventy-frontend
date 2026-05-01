@@ -8,12 +8,13 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
 import { TanStackDevtools } from '@tanstack/react-devtools';
 import { useEffect } from 'react';
+import { LoaderCircle } from 'lucide-react';
 import { Toaster } from '../components/ui/sonner';
 import Footer from '../components/Footer';
 import Header from '../components/Header';
 import NotFoundPage from '../components/NotFoundPage';
 import RootErrorPage from '../components/RootErrorPage';
-import { hydrateAuthSession } from '../lib/auth';
+import { hydrateAuthSession, useAuthHydrating, useAuthSession } from '../lib/auth';
 import { queryClient } from '../lib/query-client';
 
 import appCss from '../styles.css?url';
@@ -52,11 +53,39 @@ export const Route = createRootRoute({
 });
 
 function AuthSessionBootstrap() {
+  const session = useAuthSession();
+  const isHydrating = useAuthHydrating();
+
   useEffect(() => {
     hydrateAuthSession().catch(() => undefined);
   }, []);
 
-  return null;
+  if (!isHydrating || session) {
+    return null;
+  }
+
+  return (
+    <div className="pointer-events-none fixed inset-0 z-[90] grid place-items-center bg-background/75 backdrop-blur-md">
+      <div className="relative overflow-hidden rounded-[1.6rem] border border-primary/20 bg-card/95 px-7 py-6 shadow-xl">
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.14),transparent_60%)]" />
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
+
+        <div className="flex items-center gap-3">
+          <span className="inline-flex size-9 items-center justify-center rounded-full bg-primary/12 text-primary">
+            <LoaderCircle className="size-4 animate-spin" />
+          </span>
+          <div className="space-y-1">
+            <p className="font-serif text-base font-semibold tracking-tight text-foreground">
+              Eventy
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Restoring your session...
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function RootDocument({ children }: { children: React.ReactNode }) {

@@ -21,12 +21,12 @@ import {
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
 import { forgotPassword } from "#/lib/api/auth";
-import { getAuthSession } from "#/lib/auth";
+import { getAuthSession, hydrateAuthSession } from "#/lib/auth";
 import { canAccessAdminApp } from "#/features/admin/auth";
 
 export const Route = createFileRoute("/forgot-password")({
-  beforeLoad: () => {
-    const session = getAuthSession();
+  beforeLoad: async () => {
+    const session = getAuthSession() ?? (await hydrateAuthSession());
 
     if (session) {
       throw redirect({
@@ -99,7 +99,7 @@ function ForgotPasswordPage() {
           </CardTitle>
           <CardDescription className="max-w-xl text-base leading-8">
             Enter the email tied to your Eventy account and we will send a
-            one-time code you can use to reset your password.
+            one-time code you can use to reset your password, no matter your role.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5 px-0">

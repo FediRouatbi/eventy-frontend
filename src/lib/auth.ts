@@ -14,29 +14,16 @@ export type AuthSession = {
   user: Profile;
 };
 
-const AUTH_STORAGE_KEY = "eventy.auth.session";
 const AUTH_EVENT_NAME = "eventy-auth-changed";
 const ACCESS_TOKEN_REFRESH_BUFFER_MS = 60_000;
 
 let refreshPromise: Promise<AuthSession | null> | null = null;
+let hydratePromise: Promise<AuthSession | null> | null = null;
+let authSession: AuthSession | null = null;
+let authHydrating = false;
 
 function isBrowser() {
   return typeof window !== "undefined";
-}
-
-function isSessionShape(value: unknown): value is AuthSession {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const candidate = value as Partial<AuthSession>;
-  return (
-    typeof candidate.access_token === "string" &&
-    typeof candidate.access_expires_at === "string" &&
-    typeof candidate.refresh_token === "string" &&
-    typeof candidate.refresh_expires_at === "string" &&
-    Boolean(candidate.user)
-  );
 }
 
 function getExpiryTime(value?: string) {
@@ -71,43 +58,23 @@ function emitAuthChange() {
 }
 
 function normalizeSession(session: AuthResult | AuthSession) {
-  return session as AuthSession;
+  const nextSession = session as AuthSession;
+  return {
+    ...nextSession,
+    refresh_token: "",
+  };
 }
 
 export function getAuthSession(): AuthSession | null {
-  if (!isBrowser()) {
-    return null;
-  }
+  return authSession;
+}
 
-  const rawValue = window.localStorage.getItem(AUTH_STORAGE_KEY);
-  if (!rawValue) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(rawValue) as unknown;
-
-    if (!isSessionShape(parsed)) {
-      window.localStorage.removeItem(AUTH_STORAGE_KEY);
-      return null;
-    }
-
-    return parsed;
-  } catch {
-    window.localStorage.removeItem(AUTH_STORAGE_KEY);
-    return null;
-  }
+export function isAuthHydrating() {
+  return authHydrating;
 }
 
 export function saveAuthSession(session: AuthResult | AuthSession) {
-  if (!isBrowser()) {
-    return;
-  }
-
-  window.localStorage.setItem(
-    AUTH_STORAGE_KEY,
-    JSON.stringify(normalizeSession(session)),
-  );
+  authSession = normalizeSession(session);
   emitAuthChange();
 }
 
@@ -125,20 +92,12 @@ export function updateAuthSessionUser(user: Profile) {
 }
 
 export function clearAuthSession() {
-  if (!isBrowser()) {
-    return;
-  }
-
-  window.localStorage.removeItem(AUTH_STORAGE_KEY);
+  authSession = null;
   emitAuthChange();
 }
 
-async function refreshSessionRequest(refreshToken: string) {
-  const { data, error } = await apiClient.POST("/v1/auth/refresh", {
-    body: {
-      refresh_token: refreshToken,
-    },
-  });
+async function refreshSessionRequest() {
+  const { data, error } = await apiClient.POST("/v1/auth/refresh");
 
   if (error || !data || !("access_token" in data)) {
     throw new Error(error?.message ?? "Failed to refresh session");
@@ -148,15 +107,12 @@ async function refreshSessionRequest(refreshToken: string) {
 }
 
 export async function refreshAuthSession() {
-  const currentSession = getAuthSession();
-
-  if (!currentSession || isExpired(currentSession.refresh_expires_at)) {
-    clearAuthSession();
+  if (!isBrowser()) {
     return null;
   }
 
   if (!refreshPromise) {
-    refreshPromise = refreshSessionRequest(currentSession.refresh_token)
+    refreshPromise = refreshSessionRequest()
       .then((nextSession) => {
         saveAuthSession(nextSession);
         return nextSession;
@@ -174,10 +130,13 @@ export async function refreshAuthSession() {
 }
 
 export async function getValidAccessToken() {
-  const session = getAuthSession();
+  let session = getAuthSession();
 
   if (!session) {
-    return null;
+    session = await refreshAuthSession();
+    if (!session) {
+      return null;
+    }
   }
 
   if (!shouldRefreshAccessToken(session)) {
@@ -211,19 +170,34 @@ export async function loadCurrentUser() {
 }
 
 export async function hydrateAuthSession() {
-  const session = getAuthSession();
-
-  if (!session) {
+  if (!isBrowser()) {
     return null;
   }
 
-  try {
-    await getValidAccessToken();
-    await loadCurrentUser();
-    return getAuthSession();
-  } catch {
-    return getAuthSession();
+  if (!hydratePromise) {
+    authHydrating = true;
+    emitAuthChange();
+    hydratePromise = (async () => {
+      const session = getAuthSession() ?? (await refreshAuthSession());
+      if (!session) {
+        return null;
+      }
+
+      try {
+        await loadCurrentUser();
+      } catch {
+        return getAuthSession();
+      }
+
+      return getAuthSession();
+    })().finally(() => {
+      hydratePromise = null;
+      authHydrating = false;
+      emitAuthChange();
+    });
   }
+
+  return hydratePromise;
 }
 
 export function useAuthSession() {
@@ -237,14 +211,33 @@ export function useAuthSession() {
     }
 
     syncSession();
-    window.addEventListener("storage", syncSession);
     window.addEventListener(AUTH_EVENT_NAME, syncSession);
 
     return () => {
-      window.removeEventListener("storage", syncSession);
       window.removeEventListener(AUTH_EVENT_NAME, syncSession);
     };
   }, []);
 
   return session;
+}
+
+export function useAuthHydrating() {
+  const [isHydrating, setIsHydrating] = useState<boolean>(() =>
+    isAuthHydrating(),
+  );
+
+  useEffect(() => {
+    function syncHydration() {
+      setIsHydrating(isAuthHydrating());
+    }
+
+    syncHydration();
+    window.addEventListener(AUTH_EVENT_NAME, syncHydration);
+
+    return () => {
+      window.removeEventListener(AUTH_EVENT_NAME, syncHydration);
+    };
+  }, []);
+
+  return isHydrating;
 }
