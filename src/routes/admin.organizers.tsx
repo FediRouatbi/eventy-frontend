@@ -61,7 +61,6 @@ type OrganizerFormValues = {
   organizer_slug: string;
   admin_name: string;
   admin_email: string;
-  admin_password: string;
 };
 
 type EditOrganizerFormValues = {
@@ -127,7 +126,6 @@ function AdminOrganizersPage() {
       organizer_slug: "",
       admin_name: "",
       admin_email: "",
-      admin_password: "",
     },
   });
   const editOrganizerForm = useForm<EditOrganizerFormValues>({
@@ -160,7 +158,6 @@ function AdminOrganizersPage() {
         organizer_slug: values.organizer_slug.trim(),
         admin_name: values.admin_name.trim(),
         admin_email: values.admin_email.trim(),
-        admin_password: values.admin_password,
       }),
   });
   const updateOrganizerMutation = useMutation({
@@ -594,25 +591,9 @@ function AdminOrganizersPage() {
                 <FieldError message={organizerFormErrors.admin_email?.message} />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="admin-password">Admin password</Label>
-                <Input
-                  id="admin-password"
-                  type="password"
-                  className={getInvalidFieldClass(
-                    Boolean(organizerFormErrors.admin_password),
-                  )}
-                  {...organizerForm.register("admin_password", {
-                    required: "Admin password is required",
-                    minLength: {
-                      value: 8,
-                      message: "Password must be at least 8 characters",
-                    },
-                  })}
-                />
-                <FieldError
-                  message={organizerFormErrors.admin_password?.message}
-                />
+              <div className="rounded-2xl border border-border/70 bg-secondary/35 p-4 text-sm leading-6 text-muted-foreground">
+                The admin will use Firebase email/password or Google sign-in
+                with this email address. No Eventy password is stored.
               </div>
             </div>
 

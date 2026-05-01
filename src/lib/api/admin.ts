@@ -9,8 +9,12 @@ type EventDetail = components["schemas"]["EventDetail"];
 type EventSession = components["schemas"]["EventSession"];
 type TicketType = components["schemas"]["TicketType"];
 type OrganizerAdmin = components["schemas"]["OrganizerAdmin"];
-type CreateOrganizerAdminInput =
-  components["schemas"]["CreateOrganizerAdminInput"];
+type CreateOrganizerAdminInput = {
+  organizer_name: string;
+  organizer_slug: string;
+  admin_name: string;
+  admin_email: string;
+};
 type CreateOrganizerAdminResult =
   components["schemas"]["CreateOrganizerAdminResult"];
 type CreateCategoryInput = components["schemas"]["CreateCategoryInput"];
@@ -218,7 +222,7 @@ export async function createOrganizerAdmin(
   const client = getClient(accessToken);
   return unwrapData(
     await client.POST("/v1/admins/organizers", {
-      body: input,
+      body: input as components["schemas"]["CreateOrganizerAdminInput"],
     }),
     "Failed to create organizer admin",
   );

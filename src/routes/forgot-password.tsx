@@ -2,7 +2,6 @@ import {
   Link,
   createFileRoute,
   redirect,
-  useNavigate,
 } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -20,9 +19,9 @@ import {
 } from "#/components/ui/card";
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
-import { forgotPassword } from "#/lib/api/auth";
 import { getAuthSession, hydrateAuthSession } from "#/lib/auth";
 import { canAccessAdminApp } from "#/features/admin/auth";
+import { sendFirebasePasswordReset } from "#/lib/firebase";
 
 export const Route = createFileRoute("/forgot-password")({
   beforeLoad: async () => {
@@ -52,7 +51,6 @@ function getInvalidFieldClass(hasError?: boolean) {
 }
 
 function ForgotPasswordPage() {
-  const navigate = useNavigate();
   const form = useForm<ForgotPasswordFormValues>({
     defaultValues: {
       email: "",
@@ -61,20 +59,15 @@ function ForgotPasswordPage() {
 
   const errors = form.formState.errors;
   const forgotPasswordMutation = useMutation({
-    mutationFn: forgotPassword,
+    mutationFn: ({ email }: ForgotPasswordFormValues) =>
+      sendFirebasePasswordReset(email),
     onSuccess: (_, values) => {
-      toast.success("Reset OTP sent", {
-        description: `We sent a password reset code to ${values.email}.`,
-      });
-      navigate({
-        to: "/reset-password",
-        search: {
-          email: values.email,
-        },
+      toast.success("Reset email sent", {
+        description: `Firebase sent password reset instructions to ${values.email}.`,
       });
     },
     onError: (error) => {
-      toast.error("Failed to send reset OTP", {
+      toast.error("Failed to send reset email", {
         description:
           error instanceof Error ? error.message : "Please try again.",
       });
@@ -95,11 +88,11 @@ function ForgotPasswordPage() {
             Account recovery
           </Badge>
           <CardTitle className="font-serif text-5xl font-semibold leading-tight">
-            Send a password reset OTP.
+            Send a Firebase password reset.
           </CardTitle>
           <CardDescription className="max-w-xl text-base leading-8">
-            Enter the email tied to your Eventy account and we will send a
-            one-time code you can use to reset your password, no matter your role.
+            Enter the email tied to your Eventy account and Firebase will send
+            secure reset instructions to your inbox.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5 px-0">
@@ -108,10 +101,10 @@ function ForgotPasswordPage() {
               <CardContent className="flex items-start gap-3 p-5">
                 <MailCheck className="mt-0.5 size-5 text-primary" />
                 <div className="space-y-1">
-                  <p className="font-medium text-foreground">OTP by email</p>
+                  <p className="font-medium text-foreground">Reset by email</p>
                   <p className="text-sm leading-6 text-muted-foreground">
-                    We send a short code to your inbox instead of a reset link,
-                    which keeps the flow simple across devices.
+                    Firebase sends the reset link and manages password updates
+                    for web sign-in.
                   </p>
                 </div>
               </CardContent>
@@ -122,8 +115,8 @@ function ForgotPasswordPage() {
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">Secure recovery</p>
                   <p className="text-sm leading-6 text-muted-foreground">
-                    You will still need the OTP and a new password before any
-                    reset is accepted.
+                    Eventy keeps app access separate and verifies Firebase
+                    tokens after sign-in.
                   </p>
                 </div>
               </CardContent>
@@ -138,7 +131,7 @@ function ForgotPasswordPage() {
             Forgot password
           </Badge>
           <CardTitle className="font-serif text-3xl">
-            Request reset code
+            Request reset email
           </CardTitle>
           <CardDescription>Use the email address on your account.</CardDescription>
         </CardHeader>
@@ -174,10 +167,10 @@ function ForgotPasswordPage() {
               {forgotPasswordMutation.isPending ? (
                 <>
                   <LoaderCircle className="size-4 animate-spin" />
-                  Sending reset OTP
+                  Sending reset email
                 </>
               ) : (
-                "Send reset OTP"
+                "Send reset email"
               )}
             </Button>
 
@@ -187,15 +180,6 @@ function ForgotPasswordPage() {
                 className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
               >
                 Back to login
-              </Link>
-              <Link
-                to="/reset-password"
-                search={{
-                  email: form.watch("email"),
-                }}
-                className="text-primary underline-offset-4 hover:underline"
-              >
-                Already have an OTP?
               </Link>
             </div>
           </form>

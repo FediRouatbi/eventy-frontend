@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SupportRouteImport } from './routes/support'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as LoginRouteImport } from './routes/login'
@@ -30,11 +29,10 @@ import { Route as EventsEventIdRouteImport } from './routes/events.$eventId'
 import { Route as CheckoutSuccessRouteImport } from './routes/checkout.success'
 import { Route as CheckoutCompleteRouteImport } from './routes/checkout.complete'
 import { Route as CategoriesCategorySlugRouteImport } from './routes/categories.$categorySlug'
-import { Route as AdminResetPasswordRouteImport } from './routes/admin.reset-password'
+import { Route as AuthActionRouteImport } from './routes/auth.action'
 import { Route as AdminOrganizersRouteImport } from './routes/admin.organizers'
 import { Route as AdminCheckInRouteImport } from './routes/admin.check-in'
 import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
-import { Route as AccountSecurityRouteImport } from './routes/account.security'
 import { Route as AccountProfileRouteImport } from './routes/account.profile'
 import { Route as AdminEventsIndexRouteImport } from './routes/admin.events.index'
 import { Route as AdminOrganizersOrganizerIdRouteImport } from './routes/admin.organizers.$organizerId'
@@ -48,11 +46,6 @@ const TermsRoute = TermsRouteImport.update({
 const SupportRoute = SupportRouteImport.update({
   id: '/support',
   path: '/support',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RegisterRoute = RegisterRouteImport.update({
@@ -145,10 +138,10 @@ const CategoriesCategorySlugRoute = CategoriesCategorySlugRouteImport.update({
   path: '/categories/$categorySlug',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminResetPasswordRoute = AdminResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => AdminRoute,
+const AuthActionRoute = AuthActionRouteImport.update({
+  id: '/auth/action',
+  path: '/auth/action',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AdminOrganizersRoute = AdminOrganizersRouteImport.update({
   id: '/organizers',
@@ -164,11 +157,6 @@ const AdminCategoriesRoute = AdminCategoriesRouteImport.update({
   id: '/categories',
   path: '/categories',
   getParentRoute: () => AdminRoute,
-} as any)
-const AccountSecurityRoute = AccountSecurityRouteImport.update({
-  id: '/account/security',
-  path: '/account/security',
-  getParentRoute: () => rootRouteImport,
 } as any)
 const AccountProfileRoute = AccountProfileRouteImport.update({
   id: '/account/profile',
@@ -201,15 +189,13 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/register': typeof RegisterRoute
-  '/reset-password': typeof ResetPasswordRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/account/profile': typeof AccountProfileRoute
-  '/account/security': typeof AccountSecurityRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/check-in': typeof AdminCheckInRoute
   '/admin/organizers': typeof AdminOrganizersRouteWithChildren
-  '/admin/reset-password': typeof AdminResetPasswordRoute
+  '/auth/action': typeof AuthActionRoute
   '/categories/$categorySlug': typeof CategoriesCategorySlugRoute
   '/checkout/complete': typeof CheckoutCompleteRoute
   '/checkout/success': typeof CheckoutSuccessRoute
@@ -231,15 +217,13 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/register': typeof RegisterRoute
-  '/reset-password': typeof ResetPasswordRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/account/profile': typeof AccountProfileRoute
-  '/account/security': typeof AccountSecurityRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/check-in': typeof AdminCheckInRoute
   '/admin/organizers': typeof AdminOrganizersRouteWithChildren
-  '/admin/reset-password': typeof AdminResetPasswordRoute
+  '/auth/action': typeof AuthActionRoute
   '/categories/$categorySlug': typeof CategoriesCategorySlugRoute
   '/checkout/complete': typeof CheckoutCompleteRoute
   '/checkout/success': typeof CheckoutSuccessRoute
@@ -264,15 +248,13 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/register': typeof RegisterRoute
-  '/reset-password': typeof ResetPasswordRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/account/profile': typeof AccountProfileRoute
-  '/account/security': typeof AccountSecurityRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/check-in': typeof AdminCheckInRoute
   '/admin/organizers': typeof AdminOrganizersRouteWithChildren
-  '/admin/reset-password': typeof AdminResetPasswordRoute
+  '/auth/action': typeof AuthActionRoute
   '/categories/$categorySlug': typeof CategoriesCategorySlugRoute
   '/checkout/complete': typeof CheckoutCompleteRoute
   '/checkout/success': typeof CheckoutSuccessRoute
@@ -298,15 +280,13 @@ export interface FileRouteTypes {
     | '/login'
     | '/privacy'
     | '/register'
-    | '/reset-password'
     | '/support'
     | '/terms'
     | '/account/profile'
-    | '/account/security'
     | '/admin/categories'
     | '/admin/check-in'
     | '/admin/organizers'
-    | '/admin/reset-password'
+    | '/auth/action'
     | '/categories/$categorySlug'
     | '/checkout/complete'
     | '/checkout/success'
@@ -328,15 +308,13 @@ export interface FileRouteTypes {
     | '/login'
     | '/privacy'
     | '/register'
-    | '/reset-password'
     | '/support'
     | '/terms'
     | '/account/profile'
-    | '/account/security'
     | '/admin/categories'
     | '/admin/check-in'
     | '/admin/organizers'
-    | '/admin/reset-password'
+    | '/auth/action'
     | '/categories/$categorySlug'
     | '/checkout/complete'
     | '/checkout/success'
@@ -360,15 +338,13 @@ export interface FileRouteTypes {
     | '/login'
     | '/privacy'
     | '/register'
-    | '/reset-password'
     | '/support'
     | '/terms'
     | '/account/profile'
-    | '/account/security'
     | '/admin/categories'
     | '/admin/check-in'
     | '/admin/organizers'
-    | '/admin/reset-password'
+    | '/auth/action'
     | '/categories/$categorySlug'
     | '/checkout/complete'
     | '/checkout/success'
@@ -393,11 +369,10 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PrivacyRoute: typeof PrivacyRoute
   RegisterRoute: typeof RegisterRoute
-  ResetPasswordRoute: typeof ResetPasswordRoute
   SupportRoute: typeof SupportRoute
   TermsRoute: typeof TermsRoute
   AccountProfileRoute: typeof AccountProfileRoute
-  AccountSecurityRoute: typeof AccountSecurityRoute
+  AuthActionRoute: typeof AuthActionRoute
   CategoriesCategorySlugRoute: typeof CategoriesCategorySlugRoute
   EventsEventIdRoute: typeof EventsEventIdRoute
   OrdersOrderIdRoute: typeof OrdersOrderIdRoute
@@ -420,13 +395,6 @@ declare module '@tanstack/react-router' {
       path: '/support'
       fullPath: '/support'
       preLoaderRoute: typeof SupportRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/register': {
@@ -555,12 +523,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CategoriesCategorySlugRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/reset-password': {
-      id: '/admin/reset-password'
-      path: '/reset-password'
-      fullPath: '/admin/reset-password'
-      preLoaderRoute: typeof AdminResetPasswordRouteImport
-      parentRoute: typeof AdminRoute
+    '/auth/action': {
+      id: '/auth/action'
+      path: '/auth/action'
+      fullPath: '/auth/action'
+      preLoaderRoute: typeof AuthActionRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/admin/organizers': {
       id: '/admin/organizers'
@@ -582,13 +550,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/categories'
       preLoaderRoute: typeof AdminCategoriesRouteImport
       parentRoute: typeof AdminRoute
-    }
-    '/account/security': {
-      id: '/account/security'
-      path: '/account/security'
-      fullPath: '/account/security'
-      preLoaderRoute: typeof AccountSecurityRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/account/profile': {
       id: '/account/profile'
@@ -637,7 +598,6 @@ interface AdminRouteChildren {
   AdminCategoriesRoute: typeof AdminCategoriesRoute
   AdminCheckInRoute: typeof AdminCheckInRoute
   AdminOrganizersRoute: typeof AdminOrganizersRouteWithChildren
-  AdminResetPasswordRoute: typeof AdminResetPasswordRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminEventsEventIdRoute: typeof AdminEventsEventIdRoute
   AdminEventsIndexRoute: typeof AdminEventsIndexRoute
@@ -647,7 +607,6 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminCategoriesRoute: AdminCategoriesRoute,
   AdminCheckInRoute: AdminCheckInRoute,
   AdminOrganizersRoute: AdminOrganizersRouteWithChildren,
-  AdminResetPasswordRoute: AdminResetPasswordRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminEventsEventIdRoute: AdminEventsEventIdRoute,
   AdminEventsIndexRoute: AdminEventsIndexRoute,
@@ -680,11 +639,10 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PrivacyRoute: PrivacyRoute,
   RegisterRoute: RegisterRoute,
-  ResetPasswordRoute: ResetPasswordRoute,
   SupportRoute: SupportRoute,
   TermsRoute: TermsRoute,
   AccountProfileRoute: AccountProfileRoute,
-  AccountSecurityRoute: AccountSecurityRoute,
+  AuthActionRoute: AuthActionRoute,
   CategoriesCategorySlugRoute: CategoriesCategorySlugRoute,
   EventsEventIdRoute: EventsEventIdRoute,
   OrdersOrderIdRoute: OrdersOrderIdRoute,

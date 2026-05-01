@@ -525,57 +525,6 @@ export interface paths {
         };
         trace?: never;
     };
-    "/v1/admins/organizers/{organizerID}/admins/{adminID}/password": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Reset organizer admin password
-         * @description Super admins can set a new password for a specific organizer admin account.
-         */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    organizerID: string;
-                    adminID: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ResetOrganizerAdminPasswordInput"];
-                };
-            };
-            responses: {
-                /** @description Password updated successfully */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["MessageResponse"];
-                    };
-                };
-                400: components["responses"]["ErrorResponse"];
-                401: components["responses"]["ErrorResponse"];
-                403: components["responses"]["ErrorResponse"];
-                404: components["responses"]["ErrorResponse"];
-                500: components["responses"]["ErrorResponse"];
-            };
-        };
-        trace?: never;
-    };
     "/v1/categories": {
         parameters: {
             query?: never;
@@ -1611,7 +1560,7 @@ export interface paths {
         };
         trace?: never;
     };
-    "/v1/auth/register": {
+    "/v1/auth/firebase/login": {
         parameters: {
             query?: never;
             header?: never;
@@ -1621,8 +1570,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Start user registration
-         * @description Creates or updates a pending registration and sends a 6-digit OTP to the user's email.
+         * Login with Firebase
+         * @description Verifies a Firebase ID token, creates or links the Eventy profile when the Firebase email is verified, and returns an Eventy session.
          */
         post: {
             parameters: {
@@ -1633,141 +1582,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["RegisterInput"];
-                };
-            };
-            responses: {
-                /** @description OTP sent successfully */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["MessageResponse"];
-                    };
-                };
-                400: components["responses"]["ErrorResponse"];
-                409: components["responses"]["ErrorResponse"];
-                500: components["responses"]["ErrorResponse"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/auth/register/verify": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Verify registration OTP
-         * @description Verifies the email OTP, creates the user, and returns an auth token.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["VerifyRegisterOTPInput"];
-                };
-            };
-            responses: {
-                /** @description User created successfully */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["AuthResult"];
-                    };
-                };
-                400: components["responses"]["ErrorResponse"];
-                409: components["responses"]["ErrorResponse"];
-                500: components["responses"]["ErrorResponse"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/auth/register/resend-otp": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Resend registration OTP
-         * @description Generates a new OTP for an existing pending registration and sends it to the same email.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ResendRegisterOTPInput"];
-                };
-            };
-            responses: {
-                /** @description OTP resent successfully */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["MessageResponse"];
-                    };
-                };
-                400: components["responses"]["ErrorResponse"];
-                500: components["responses"]["ErrorResponse"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/auth/login": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Login user */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["LoginInput"];
+                    "application/json": components["schemas"]["FirebaseLoginInput"];
                 };
             };
             responses: {
@@ -1784,6 +1599,51 @@ export interface paths {
                 };
                 400: components["responses"]["ErrorResponse"];
                 401: components["responses"]["ErrorResponse"];
+                500: components["responses"]["ErrorResponse"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/firebase/email-availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check Firebase signup email availability
+         * @description Checks whether an email is already linked to an Eventy profile before creating a Firebase account.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EmailAvailabilityInput"];
+                };
+            };
+            responses: {
+                /** @description Email availability returned */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EmailAvailabilityResult"];
+                    };
+                };
+                400: components["responses"]["ErrorResponse"];
                 500: components["responses"]["ErrorResponse"];
             };
         };
@@ -1832,143 +1692,6 @@ export interface paths {
                 };
                 400: components["responses"]["ErrorResponse"];
                 401: components["responses"]["ErrorResponse"];
-                500: components["responses"]["ErrorResponse"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/auth/change-password": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Change password
-         * @description Authenticated users can change their password by providing their current password.
-         */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ChangePasswordInput"];
-                };
-            };
-            responses: {
-                /** @description Password changed successfully */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["MessageResponse"];
-                    };
-                };
-                400: components["responses"]["ErrorResponse"];
-                401: components["responses"]["ErrorResponse"];
-                500: components["responses"]["ErrorResponse"];
-            };
-        };
-        trace?: never;
-    };
-    "/v1/auth/forgot-password": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Start password reset
-         * @description Generates a password reset OTP and sends it to the user's email.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ForgotPasswordInput"];
-                };
-            };
-            responses: {
-                /** @description Password reset OTP sent successfully */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["MessageResponse"];
-                    };
-                };
-                400: components["responses"]["ErrorResponse"];
-                401: components["responses"]["ErrorResponse"];
-                500: components["responses"]["ErrorResponse"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/auth/reset-password": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Reset password
-         * @description Resets the user's password using the emailed OTP.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ResetPasswordInput"];
-                };
-            };
-            responses: {
-                /** @description Password reset successfully */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["MessageResponse"];
-                    };
-                };
-                400: components["responses"]["ErrorResponse"];
                 500: components["responses"]["ErrorResponse"];
             };
         };
@@ -2392,17 +2115,6 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        RegisterInput: {
-            /** @example John Doe */
-            name: string;
-            /**
-             * Format: email
-             * @example john@example.com
-             */
-            email: string;
-            /** @example secret123 */
-            password: string;
-        };
         CreateOrganizerAdminInput: {
             /** @example Eventy Lagos */
             organizer_name: string;
@@ -2415,8 +2127,6 @@ export interface components {
              * @example organizer@example.com
              */
             admin_email: string;
-            /** @example secret123 */
-            admin_password: string;
         };
         AddOrganizerAdminInput: {
             /** @example Lagos Organizer Admin */
@@ -2426,8 +2136,6 @@ export interface components {
              * @example organizer@example.com
              */
             admin_email: string;
-            /** @example secret123 */
-            admin_password: string;
         };
         UpdateOrganizerInput: {
             /** @example Eventy Lagos */
@@ -2443,10 +2151,6 @@ export interface components {
              * @example organizer@example.com
              */
             admin_email: string;
-        };
-        ResetOrganizerAdminPasswordInput: {
-            /** @example newSecret123 */
-            password: string;
         };
         CreateCategoryInput: {
             /** @example Cinema */
@@ -2607,36 +2311,24 @@ export interface components {
             /** @example 5 */
             max_per_order: number;
         };
-        VerifyRegisterOTPInput: {
+        FirebaseLoginInput: {
+            /** @description Firebase ID token from Firebase Auth. */
+            id_token: string;
+            /**
+             * @example web
+             * @enum {string}
+             */
+            platform: "android" | "ios" | "web";
+        };
+        EmailAvailabilityInput: {
             /**
              * Format: email
              * @example john@example.com
              */
             email: string;
-            /** @example 123456 */
-            otp: string;
         };
-        ResendRegisterOTPInput: {
-            /**
-             * Format: email
-             * @example john@example.com
-             */
-            email: string;
-        };
-        LoginInput: {
-            /**
-             * Format: email
-             * @example john@example.com
-             */
-            email: string;
-            /** @example secret123 */
-            password: string;
-        };
-        ChangePasswordInput: {
-            /** @example secret123 */
-            current_password: string;
-            /** @example newSecret123 */
-            new_password: string;
+        EmailAvailabilityResult: {
+            available: boolean;
         };
         UpdateProfileInput: {
             /** @example John Doe */
@@ -2647,10 +2339,7 @@ export interface components {
              */
             email: string;
         };
-        DeleteAccountInput: {
-            /** @example secret123 */
-            current_password: string;
-        };
+        DeleteAccountInput: Record<string, never>;
         /** @description Refresh token payload. Optional when refresh token is supplied by HttpOnly cookie. */
         RefreshTokenInput: {
             refresh_token?: string;
@@ -2659,30 +2348,13 @@ export interface components {
         LogoutInput: {
             refresh_token?: string;
         };
-        ForgotPasswordInput: {
-            /**
-             * Format: email
-             * @example john@example.com
-             */
-            email: string;
-        };
-        ResetPasswordInput: {
-            /**
-             * Format: email
-             * @example john@example.com
-             */
-            email: string;
-            /** @example 123456 */
-            token: string;
-            /** @example newSecret123 */
-            new_password: string;
-        };
         User: {
             /** Format: uuid */
             id: string;
             name: string;
             /** Format: email */
             email: string;
+            firebase_uid?: string | null;
             /**
              * @example user
              * @enum {string}
@@ -3102,6 +2774,7 @@ export interface components {
             name: string;
             /** Format: email */
             email: string;
+            firebase_uid?: string | null;
             /** @enum {string} */
             role: "user" | "organizer_admin" | "super_admin";
             /** Format: uuid */

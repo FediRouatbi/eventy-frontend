@@ -5,7 +5,6 @@ import {
   Check,
   ChevronDown,
   CircleUserRound,
-  KeyRound,
   LogOut,
   ReceiptText,
   Settings,
@@ -17,6 +16,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { logout } from "#/lib/api/auth";
+import { signOutFromFirebase } from "#/lib/firebase";
 import {
   canAccessAdminApp,
   isAdminRole,
@@ -76,11 +76,10 @@ export default function Header() {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      if (!session) {
-        return;
-      }
-
-        await logout();
+      await Promise.allSettled([
+        session ? logout(session.access_token) : Promise.resolve(),
+        signOutFromFirebase(),
+      ]);
     },
     onSettled: () => {
       clearAuthSession();
@@ -356,18 +355,6 @@ export default function Header() {
                           Orders
                         </Link>
                       </Button>
-                      {isAdminUser ? null : (
-                        <Button
-                          asChild
-                          variant="ghost"
-                          className="h-11 w-full justify-start rounded-2xl"
-                        >
-                          <Link to="/account/security">
-                            <KeyRound className="size-4" />
-                            Change password
-                          </Link>
-                        </Button>
-                      )}
                       <Button
                         type="button"
                         variant="ghost"

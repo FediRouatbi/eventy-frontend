@@ -7,8 +7,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import {
   AlertCircle,
-  Eye,
-  EyeOff,
   LoaderCircle,
   Save,
   UserRound,
@@ -39,6 +37,7 @@ import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
 import { isAdminRole } from "#/features/admin/auth";
 import { deleteProfile, getMe, updateProfile } from "#/lib/api/auth";
+import { signOutFromFirebase } from "#/lib/firebase";
 import {
   clearAuthSession,
   getAuthSession,
@@ -67,10 +66,6 @@ type ProfileFormValues = {
   email: string;
 };
 
-type DeleteAccountFormValues = {
-  current_password: string;
-};
-
 function FieldError({ message }: { message?: string }) {
   return message ? <p className="text-sm text-destructive">{message}</p> : null;
 }
@@ -86,19 +81,12 @@ function AccountProfilePage() {
   const navigate = useNavigate();
   const session = useAuthSession();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [showDeletePassword, setShowDeletePassword] = useState(false);
   const form = useForm<ProfileFormValues>({
     defaultValues: {
       name: "",
       email: "",
     },
   });
-  const deleteForm = useForm<DeleteAccountFormValues>({
-    defaultValues: {
-      current_password: "",
-    },
-  });
-
   const profileQuery = useQuery({
     queryKey: ["auth", "me"],
     queryFn: () => getMe(),
@@ -138,17 +126,17 @@ function AccountProfilePage() {
   });
 
   const deleteAccountMutation = useMutation({
-    mutationFn: async (values: DeleteAccountFormValues) => {
+    mutationFn: async () => {
       if (!session) {
         throw new Error("You need to be signed in");
       }
 
-      await deleteProfile(session.access_token, values);
+      await deleteProfile(session.access_token);
+      await signOutFromFirebase().catch(() => undefined);
     },
     onSuccess: () => {
       queryClient.removeQueries({ queryKey: ["auth", "me"] });
       clearAuthSession();
-      deleteForm.reset();
       setIsDeleteDialogOpen(false);
       toast.success("Account deleted", {
         description: "Your Eventy account has been deleted successfully.",
@@ -170,14 +158,7 @@ function AccountProfilePage() {
     });
   }
 
-  async function handleDeleteAccount(values: DeleteAccountFormValues) {
-    await deleteAccountMutation.mutateAsync({
-      current_password: values.current_password.trim(),
-    });
-  }
-
   const errors = form.formState.errors;
-  const deleteErrors = deleteForm.formState.errors;
 
   if (!session || isAdminRole(session.user.role)) {
     return null;
@@ -326,18 +307,12 @@ function AccountProfilePage() {
                 Delete account
               </p>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Enter your current password to permanently remove your profile
-                and sign out across Eventy.
+                Permanently remove your Eventy profile and sign out of this
+                browser.
               </p>
               <AlertDialog
                 open={isDeleteDialogOpen}
-                onOpenChange={(open) => {
-                  setIsDeleteDialogOpen(open);
-                  if (!open) {
-                    deleteForm.reset();
-                    setShowDeletePassword(false);
-                  }
-                }}
+                onOpenChange={setIsDeleteDialogOpen}
               >
                 <AlertDialogTrigger asChild>
                   <Button
@@ -360,71 +335,28 @@ function AccountProfilePage() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete your account?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This action cannot be undone. Confirm with your current
-                      password to permanently remove your Eventy profile.
+                      This action cannot be undone. Firebase remains the source
+                      of authentication; this removes your Eventy profile data.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
-                  <form
-                    className="space-y-4"
-                    onSubmit={deleteForm.handleSubmit(handleDeleteAccount)}
-                  >
-                    <div className="space-y-2">
-                      <Label htmlFor="delete-current-password">
-                        Current password
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          id="delete-current-password"
-                          type={showDeletePassword ? "text" : "password"}
-                          autoComplete="current-password"
-                          className={`pr-11 ${getInvalidFieldClass(
-                            Boolean(deleteErrors.current_password),
-                          ) ?? ""}`.trim()}
-                          {...deleteForm.register("current_password", {
-                            required: "Current password is required",
-                          })}
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="absolute right-1 top-1/2 size-9 -translate-y-1/2 rounded-full text-muted-foreground"
-                          onClick={() => setShowDeletePassword((value) => !value)}
-                          aria-label={
-                            showDeletePassword
-                              ? "Hide current password"
-                              : "Show current password"
-                          }
-                        >
-                          {showDeletePassword ? (
-                            <Eye className="size-4" />
-                          ) : (
-                            <EyeOff className="size-4" />
-                          )}
-                        </Button>
-                      </div>
-                      <FieldError
-                        message={deleteErrors.current_password?.message}
-                      />
-                    </div>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel
-                        disabled={deleteAccountMutation.isPending}
-                      >
-                        Cancel
-                      </AlertDialogCancel>
-                      <Button
-                        type="submit"
-                        variant="destructive"
-                        className="rounded-full"
-                        disabled={deleteAccountMutation.isPending}
-                      >
-                        {deleteAccountMutation.isPending
-                          ? "Deleting..."
-                          : "Yes, delete account"}
-                      </Button>
-                    </AlertDialogFooter>
-                  </form>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel
+                      disabled={deleteAccountMutation.isPending}
+                    >
+                      Cancel
+                    </AlertDialogCancel>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      className="rounded-full"
+                      disabled={deleteAccountMutation.isPending}
+                      onClick={() => deleteAccountMutation.mutate()}
+                    >
+                      {deleteAccountMutation.isPending
+                        ? "Deleting..."
+                        : "Yes, delete account"}
+                    </Button>
+                  </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
             </div>

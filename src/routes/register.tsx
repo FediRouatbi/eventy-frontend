@@ -5,16 +5,16 @@ import {
   useNavigate,
 } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
-import { Controller, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import {
+  AlertCircle,
   Eye,
   EyeOff,
   LoaderCircle,
-  MailCheck,
   ShieldCheck,
   UserPlus,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "#/components/ui/badge";
@@ -27,19 +27,20 @@ import {
   CardTitle,
 } from "#/components/ui/card";
 import { Input } from "#/components/ui/input";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "#/components/ui/input-otp";
 import { Label } from "#/components/ui/label";
+import { canAccessAdminApp } from "#/features/admin/auth";
 import {
-  register,
-  resendRegisterOtp,
-  verifyRegisterOtp,
+  checkFirebaseEmailAvailability,
+  loginWithFirebaseIDToken,
 } from "#/lib/api/auth";
 import { getAuthSession, hydrateAuthSession, saveAuthSession } from "#/lib/auth";
-import { canAccessAdminApp } from "#/features/admin/auth";
+import {
+  createFirebaseUser,
+  getFirebaseIDToken,
+  sendFirebaseEmailVerification,
+  signInToFirebaseWithGoogle,
+  signOutFromFirebase,
+} from "#/lib/firebase";
 
 export const Route = createFileRoute("/register")({
   beforeLoad: async () => {
@@ -53,7 +54,6 @@ export const Route = createFileRoute("/register")({
   },
   validateSearch: (search: Record<string, unknown>) => ({
     email: typeof search.email === "string" ? search.email : "",
-    step: search.step === "verify" ? "verify" : "details",
   }),
   component: RegisterPage,
 });
@@ -62,11 +62,6 @@ type RegisterFormValues = {
   name: string;
   email: string;
   password: string;
-};
-
-type VerifyOtpFormValues = {
-  email: string;
-  otp: string;
 };
 
 function FieldError({ message }: { message?: string }) {
@@ -83,6 +78,7 @@ function RegisterPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const registerForm = useForm<RegisterFormValues>({
     defaultValues: {
       name: "",
@@ -90,43 +86,40 @@ function RegisterPage() {
       password: "",
     },
   });
-  const verifyForm = useForm<VerifyOtpFormValues>({
-    defaultValues: {
-      email: search.email,
-      otp: "",
-    },
-  });
-
-  useEffect(() => {
-    registerForm.setValue("email", search.email);
-    verifyForm.reset({
-      email: search.email,
-      otp: "",
-    });
-  }, [registerForm, search.email, verifyForm]);
-
   const registerErrors = registerForm.formState.errors;
-  const verifyErrors = verifyForm.formState.errors;
+
+  const completeEventyLogin = async (idToken: string) => {
+    const authResult = await loginWithFirebaseIDToken(idToken);
+    saveAuthSession(authResult);
+    return authResult;
+  };
 
   const registerMutation = useMutation({
-    mutationFn: register,
-    onSuccess: (_, values) => {
-      toast.success("Registration started", {
-        description: `We sent a verification OTP to ${values.email}.`,
+    mutationFn: async (values: RegisterFormValues) => {
+      const email = values.email.trim();
+      const availability = await checkFirebaseEmailAvailability(email);
+      if (!availability.available) {
+        throw new Error("Email is already in use");
+      }
+
+      const firebaseUser = await createFirebaseUser(
+        values.name.trim(),
+        email,
+        values.password,
+      );
+      await sendFirebaseEmailVerification(firebaseUser);
+      await signOutFromFirebase();
+    },
+    onSuccess: async () => {
+      toast.success("Verify your email", {
+        description: "We sent a verification link. Confirm your email, then log in.",
       });
-      verifyForm.reset({
-        email: values.email,
-        otp: "",
-      });
-      navigate({
-        to: "/register",
-        search: {
-          email: values.email,
-          step: "verify",
-        },
-      });
+      await navigate({ to: "/login", search: { email: registerForm.getValues("email") } });
     },
     onError: (error) => {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Unable to create account",
+      );
       toast.error("Failed to create account", {
         description:
           error instanceof Error ? error.message : "Please try again.",
@@ -134,54 +127,37 @@ function RegisterPage() {
     },
   });
 
-  const verifyMutation = useMutation({
-    mutationFn: verifyRegisterOtp,
-    onSuccess: (authResult) => {
-      saveAuthSession(authResult);
-      toast.success("Registration complete", {
-        description: "Your account is verified and you are now signed in.",
+  const googleMutation = useMutation({
+    mutationFn: async () => {
+      const firebaseUser = await signInToFirebaseWithGoogle();
+      return completeEventyLogin(await getFirebaseIDToken(firebaseUser));
+    },
+    onSuccess: async () => {
+      toast.success("Signed in with Google", {
+        description: "Your Google account is linked to Eventy.",
       });
-      navigate({ to: "/" });
+      await navigate({ to: "/" });
     },
     onError: (error) => {
-      toast.error("Failed to verify OTP", {
-        description:
-          error instanceof Error ? error.message : "Please try again.",
-      });
-    },
-  });
-
-  const resendOtpMutation = useMutation({
-    mutationFn: resendRegisterOtp,
-    onSuccess: (_, values) => {
-      toast.success("Verification OTP resent", {
-        description: `A new OTP was sent to ${values.email}.`,
-      });
-    },
-    onError: (error) => {
-      toast.error("Failed to resend OTP", {
-        description:
-          error instanceof Error ? error.message : "Please try again.",
-      });
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to continue with Google",
+      );
     },
   });
 
   async function handleRegister(values: RegisterFormValues) {
-    await registerMutation.mutateAsync({
-      name: values.name.trim(),
-      email: values.email.trim(),
-      password: values.password,
-    });
+    setErrorMessage("");
+    await registerMutation.mutateAsync(values);
   }
 
-  async function handleVerify(values: VerifyOtpFormValues) {
-    await verifyMutation.mutateAsync({
-      email: values.email.trim(),
-      otp: values.otp.trim(),
-    });
+  function handleGoogleRegister() {
+    setErrorMessage("");
+    googleMutation.mutate();
   }
 
-  const isVerifyStep = search.step === "verify";
+  const isWorking = registerMutation.isPending || googleMutation.isPending;
 
   return (
     <main className="mx-auto grid min-h-[calc(100vh-11rem)] max-w-6xl gap-6 px-4 pb-8 pt-14 lg:grid-cols-[1.05fr_0.95fr]">
@@ -194,8 +170,8 @@ function RegisterPage() {
             Create your Eventy account.
           </CardTitle>
           <CardDescription className="max-w-xl text-base leading-8">
-            Create your account, verify your email with an OTP, and start
-            exploring events in minutes.
+            Sign up through Firebase, then Eventy links your profile, orders,
+            and tickets behind the scenes.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5 px-0">
@@ -204,22 +180,24 @@ function RegisterPage() {
               <CardContent className="flex items-start gap-3 p-5">
                 <UserPlus className="mt-0.5 size-5 text-primary" />
                 <div className="space-y-1">
-                  <p className="font-medium text-foreground">Quick sign-up</p>
+                  <p className="font-medium text-foreground">
+                    Firebase sign-up
+                  </p>
                   <p className="text-sm leading-6 text-muted-foreground">
-                    Set up your Eventy account with your name, email, and
-                    password in a few seconds.
+                    Create an account with email and password or continue with
+                    Google.
                   </p>
                 </div>
               </CardContent>
             </Card>
             <Card className="bg-card/75">
               <CardContent className="flex items-start gap-3 p-5">
-                <MailCheck className="mt-0.5 size-5 text-primary" />
+                <ShieldCheck className="mt-0.5 size-5 text-primary" />
                 <div className="space-y-1">
-                  <p className="font-medium text-foreground">OTP verification</p>
+                  <p className="font-medium text-foreground">Eventy access</p>
                   <p className="text-sm leading-6 text-muted-foreground">
-                    We send a 4-digit code to your inbox before the account is
-                    activated.
+                    Eventy verifies your Firebase token and creates your app
+                    profile automatically.
                   </p>
                 </div>
               </CardContent>
@@ -231,234 +209,147 @@ function RegisterPage() {
       <Card className="app-surface rounded-[2rem]">
         <CardHeader>
           <Badge variant="secondary" className="w-fit rounded-full">
-            {isVerifyStep ? "Verify account" : "Create account"}
+            Firebase account
           </Badge>
-          <CardTitle className="font-serif text-3xl">
-            {isVerifyStep ? "Enter your OTP" : "Register"}
-          </CardTitle>
+          <CardTitle className="font-serif text-3xl">Register</CardTitle>
           <CardDescription>
-            {isVerifyStep
-              ? "Complete registration with the OTP we sent to your email."
-              : "Create your account with your name, email, and password."}
+            Create your account with Firebase authentication.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isVerifyStep ? (
-            <form
-              className="space-y-5"
-              onSubmit={verifyForm.handleSubmit(handleVerify)}
-            >
-              <div className="space-y-2">
-                <Label htmlFor="verify-email">Email address</Label>
+          <form
+            className="space-y-5"
+            onSubmit={registerForm.handleSubmit(handleRegister)}
+          >
+            <div className="space-y-2">
+              <Label htmlFor="name">Full name</Label>
+              <Input
+                id="name"
+                autoComplete="name"
+                className={getInvalidFieldClass(Boolean(registerErrors.name))}
+                {...registerForm.register("name", {
+                  required: "Full name is required",
+                  minLength: {
+                    value: 2,
+                    message: "Name must be at least 2 characters",
+                  },
+                })}
+              />
+              <FieldError message={registerErrors.name?.message} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email address</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                className={getInvalidFieldClass(Boolean(registerErrors.email))}
+                {...registerForm.register("email", {
+                  required: "Email address is required",
+                  pattern: {
+                    value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                    message: "Enter a valid email address",
+                  },
+                })}
+              />
+              <FieldError message={registerErrors.email?.message} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
                 <Input
-                  id="verify-email"
-                  type="email"
-                  autoComplete="email"
-                  className={getInvalidFieldClass(Boolean(verifyErrors.email))}
-                  {...verifyForm.register("email", {
-                    required: "Email address is required",
-                    pattern: {
-                      value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                      message: "Enter a valid email address",
-                    },
-                  })}
-                />
-                <FieldError message={verifyErrors.email?.message} />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="otp">OTP code</Label>
-                <Controller
-                  control={verifyForm.control}
-                  name="otp"
-                  rules={{
-                    required: "OTP is required",
-                    pattern: {
-                      value: /^\d{4}$/,
-                      message: "Enter the 4-digit OTP from your email",
-                    },
-                  }}
-                  render={({ field }) => (
-                    <InputOTP
-                      id="otp"
-                      maxLength={4}
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      pattern="\d*"
-                      value={field.value}
-                      onChange={field.onChange}
-                      onBlur={field.onBlur}
-                      aria-invalid={verifyErrors.otp ? "true" : "false"}
-                      containerClassName="justify-start"
-                    >
-                      <InputOTPGroup>
-                        <InputOTPSlot index={0} />
-                        <InputOTPSlot index={1} />
-                        <InputOTPSlot index={2} />
-                        <InputOTPSlot index={3} />
-                      </InputOTPGroup>
-                    </InputOTP>
-                  )}
-                />
-                <FieldError message={verifyErrors.otp?.message} />
-              </div>
-
-              <Button
-                type="submit"
-                size="lg"
-                className="w-full rounded-full"
-                disabled={verifyMutation.isPending}
-              >
-                {verifyMutation.isPending ? (
-                  <>
-                    <LoaderCircle className="size-4 animate-spin" />
-                    Verifying account
-                  </>
-                ) : (
-                  "Verify and sign in"
-                )}
-              </Button>
-
-              <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-                <button
-                  type="button"
-                  className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-                  onClick={() =>
-                    navigate({
-                      to: "/register",
-                      search: {
-                        email: verifyForm.getValues("email"),
-                        step: "details",
-                      },
-                    })
-                  }
-                >
-                  Edit details
-                </button>
-                <button
-                  type="button"
-                  className="text-primary underline-offset-4 hover:underline disabled:text-muted-foreground"
-                  disabled={
-                    resendOtpMutation.isPending || !verifyForm.watch("email")
-                  }
-                  onClick={() =>
-                    resendOtpMutation.mutate({
-                      email: verifyForm.getValues("email").trim(),
-                    })
-                  }
-                >
-                  {resendOtpMutation.isPending ? "Resending OTP" : "Resend OTP"}
-                </button>
-              </div>
-            </form>
-          ) : (
-            <form
-              className="space-y-5"
-              onSubmit={registerForm.handleSubmit(handleRegister)}
-            >
-              <div className="space-y-2">
-                <Label htmlFor="name">Full name</Label>
-                <Input
-                  id="name"
-                  autoComplete="name"
-                  className={getInvalidFieldClass(Boolean(registerErrors.name))}
-                  {...registerForm.register("name", {
-                    required: "Full name is required",
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  className={`pr-11 ${getInvalidFieldClass(Boolean(registerErrors.password)) ?? ""}`.trim()}
+                  {...registerForm.register("password", {
+                    required: "Password is required",
                     minLength: {
-                      value: 2,
-                      message: "Name must be at least 2 characters",
+                      value: 8,
+                      message: "Password must be at least 8 characters",
                     },
                   })}
                 />
-                <FieldError message={registerErrors.name?.message} />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">Email address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  className={getInvalidFieldClass(Boolean(registerErrors.email))}
-                  {...registerForm.register("email", {
-                    required: "Email address is required",
-                    pattern: {
-                      value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                      message: "Enter a valid email address",
-                    },
-                  })}
-                />
-                <FieldError message={registerErrors.email?.message} />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    className={`pr-11 ${getInvalidFieldClass(Boolean(registerErrors.password)) ?? ""}`.trim()}
-                    {...registerForm.register("password", {
-                      required: "Password is required",
-                      minLength: {
-                        value: 8,
-                        message: "Password must be at least 8 characters",
-                      },
-                    })}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-1 top-1/2 size-9 -translate-y-1/2 rounded-full text-muted-foreground"
-                    onClick={() => setShowPassword((current) => !current)}
-                    aria-label={
-                      showPassword ? "Hide password" : "Show password"
-                    }
-                  >
-                    {showPassword ? (
-                      <EyeOff className="size-4" />
-                    ) : (
-                      <Eye className="size-4" />
-                    )}
-                  </Button>
-                </div>
-                <FieldError message={registerErrors.password?.message} />
-              </div>
-
-              <Button
-                type="submit"
-                size="lg"
-                className="w-full rounded-full"
-                disabled={registerMutation.isPending}
-              >
-                {registerMutation.isPending ? (
-                  <>
-                    <LoaderCircle className="size-4 animate-spin" />
-                    Sending verification OTP
-                  </>
-                ) : (
-                  "Create account"
-                )}
-              </Button>
-
-              <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-                <Link
-                  to="/login"
-                  className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 size-9 -translate-y-1/2 rounded-full text-muted-foreground"
+                  onClick={() => setShowPassword((current) => !current)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  Already have an account?
-                </Link>
-                <Link
-                  to="/forgot-password"
-                  className="text-primary underline-offset-4 hover:underline"
-                >
-                  Need password help?
-                </Link>
+                  {showPassword ? (
+                    <EyeOff className="size-4" />
+                  ) : (
+                    <Eye className="size-4" />
+                  )}
+                </Button>
               </div>
-            </form>
-          )}
+              <FieldError message={registerErrors.password?.message} />
+            </div>
+
+            {errorMessage ? (
+              <Card className="border-destructive/30 bg-destructive/5">
+                <CardContent className="flex items-start gap-3 p-4 text-sm text-destructive">
+                  <AlertCircle className="mt-0.5 size-4" />
+                  <p>{errorMessage}</p>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full rounded-full"
+              disabled={isWorking}
+            >
+              {registerMutation.isPending ? (
+                <>
+                  <LoaderCircle className="size-4 animate-spin" />
+                  Creating account
+                </>
+              ) : (
+                "Create account"
+              )}
+            </Button>
+          </form>
+
+          <div className="my-6 h-px bg-border" />
+
+          <Button
+            type="button"
+            size="lg"
+            variant="outline"
+            className="w-full rounded-full"
+            disabled={isWorking}
+            onClick={handleGoogleRegister}
+          >
+            {googleMutation.isPending ? (
+              <>
+                <LoaderCircle className="size-4 animate-spin" />
+                Opening Google
+              </>
+            ) : (
+              "Continue with Google"
+            )}
+          </Button>
+
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm">
+            <Link
+              to="/login"
+              className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              Already have an account?
+            </Link>
+            <Link
+              to="/forgot-password"
+              className="text-primary underline-offset-4 hover:underline"
+            >
+              Need password help?
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </main>

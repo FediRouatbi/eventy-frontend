@@ -5,7 +5,6 @@ import {
   Building2,
   CalendarRange,
   Command,
-  KeyRound,
   LayoutDashboard,
   LogOut,
   MoveRight,
@@ -22,6 +21,7 @@ import { Separator } from "#/components/ui/separator";
 import { isSuperAdminSession } from "#/features/admin/auth";
 import { clearAuthSession, type AuthSession } from "#/lib/auth";
 import { logout } from "#/lib/api/auth";
+import { signOutFromFirebase } from "#/lib/firebase";
 import { cn } from "#/lib/utils";
 
 type NavItem = {
@@ -143,7 +143,10 @@ export function AdminAppShell({ session }: { session: AuthSession }) {
   const sectionMeta = getSectionMeta(location.pathname, isSuperAdmin);
   const logoutMutation = useMutation({
     mutationFn: async () => {
-        await logout();
+      await Promise.allSettled([
+        logout(session.access_token),
+        signOutFromFirebase(),
+      ]);
     },
     onSettled: () => {
       clearAuthSession();
@@ -227,17 +230,6 @@ export function AdminAppShell({ session }: { session: AuthSession }) {
               </div>
 
               <Separator className="my-3" />
-
-              <Button
-                asChild
-                variant="outline"
-                className="w-full justify-start rounded-xl mb-2"
-              >
-                <Link to="/admin/reset-password">
-                  <KeyRound className="size-4" />
-                  Change password
-                </Link>
-              </Button>
 
               <Button
                 variant="outline"

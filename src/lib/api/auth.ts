@@ -1,15 +1,49 @@
-import { apiClient, createApiClient } from "#/lib/api/client";
+import { API_BASE_URL, apiClient, createApiClient } from "#/lib/api/client";
 import { loadCurrentUser, refreshAuthSession } from "#/lib/auth";
 import type { components } from "#/lib/api/generated/schema";
 import { assertSuccess, unwrapData } from "./response";
 
-export async function login(input: components["schemas"]["LoginInput"]) {
-  return unwrapData(
-    await apiClient.POST("/v1/auth/login", {
-      body: input,
+export async function loginWithFirebaseIDToken(idToken: string) {
+  const response = await fetch(`${API_BASE_URL}/v1/auth/firebase/login`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      id_token: idToken,
+      platform: "web",
     }),
-    "Failed to sign in",
-  );
+  });
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.message ?? "Failed to sign in with Firebase");
+  }
+
+  return payload as components["schemas"]["AuthResult"];
+}
+
+export async function checkFirebaseEmailAvailability(email: string) {
+  const response = await fetch(`${API_BASE_URL}/v1/auth/firebase/email-availability`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      email,
+    }),
+  });
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.message ?? "Failed to verify email availability");
+  }
+
+  return payload as { available: boolean };
 }
 
 export async function refreshSession() {
@@ -37,79 +71,12 @@ export async function getMe(accessToken?: string) {
   return loadCurrentUser();
 }
 
-export async function logout() {
+export async function logout(accessToken?: string) {
+  const client = accessToken ? createApiClient(accessToken) : apiClient;
+
   assertSuccess(
-    await apiClient.POST("/v1/auth/logout"),
+    await client.POST("/v1/auth/logout"),
     "Failed to sign out",
-  );
-}
-
-export async function register(input: components["schemas"]["RegisterInput"]) {
-  return unwrapData(
-    await apiClient.POST("/v1/auth/register", {
-      body: input,
-    }),
-    "Failed to create account",
-  );
-}
-
-export async function resendRegisterOtp(
-  input: components["schemas"]["ResendRegisterOTPInput"],
-) {
-  return unwrapData(
-    await apiClient.POST("/v1/auth/register/resend-otp", {
-      body: input,
-    }),
-    "Failed to resend OTP",
-  );
-}
-
-export async function verifyRegisterOtp(
-  input: components["schemas"]["VerifyRegisterOTPInput"],
-) {
-  return unwrapData(
-    await apiClient.POST("/v1/auth/register/verify", {
-      body: input,
-    }),
-    "Failed to verify OTP",
-  );
-}
-
-export async function forgotPassword(
-  input: components["schemas"]["ForgotPasswordInput"],
-) {
-  return unwrapData(
-    await apiClient.POST("/v1/auth/forgot-password", {
-      body: input,
-    }),
-    "Failed to start password reset",
-  );
-}
-
-export async function resetPassword(
-  input: components["schemas"]["ResetPasswordInput"],
-) {
-  return unwrapData(
-    await apiClient.POST("/v1/auth/reset-password", {
-      body: input,
-    }),
-    "Failed to reset password",
-  );
-}
-
-export async function changePassword(
-  accessToken: string,
-  input: components["schemas"]["ChangePasswordInput"],
-) {
-  const client = createApiClient(accessToken);
-  return unwrapData(
-    await client.PATCH("/v1/auth/change-password", {
-      body: {
-        current_password: input.current_password,
-        new_password: input.new_password,
-      },
-    }),
-    "Failed to update password",
   );
 }
 
@@ -126,16 +93,11 @@ export async function updateProfile(
   );
 }
 
-export async function deleteProfile(
-  accessToken: string,
-  input: components["schemas"]["DeleteAccountInput"],
-) {
+export async function deleteProfile(accessToken: string) {
   const client = createApiClient(accessToken);
 
   assertSuccess(
-    await client.DELETE("/v1/users/me", {
-      body: input,
-    }),
+    await client.DELETE("/v1/users/me"),
     "Failed to delete account",
   );
 }
