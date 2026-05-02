@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Link, createFileRoute, notFound } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 
@@ -20,53 +20,42 @@ import { clearCart } from "#/lib/cart";
 import { queryClient } from "#/lib/query-client";
 
 export const Route = createFileRoute("/checkout/success")({
-  validateSearch: (search: unknown) => {
-    const record =
-      search && typeof search === "object"
-        ? (search as Record<string, unknown>)
-        : {};
-
-    return {
-      orderId: typeof record.orderId === "string" ? record.orderId : "",
-      token: typeof record.token === "string" ? record.token : "",
-      session_id:
-        typeof record.session_id === "string" ? record.session_id : "",
-      open_app: typeof record.open_app === "string" ? record.open_app : "",
-      cancelled:
-        typeof record.cancelled === "string" ? record.cancelled : "",
-    };
-  },
+  validateSearch: normalizeCheckoutSuccessSearch,
   loader: async ({ search }) => {
-    if (search.session_id) {
+    const parsedSearch = normalizeCheckoutSuccessSearch(search);
+
+    if (parsedSearch.session_id) {
       try {
         await queryClient.ensureQueryData(
-          checkoutOrderByStripeSessionQueryOptions(search.session_id),
+          checkoutOrderByStripeSessionQueryOptions(parsedSearch.session_id),
         );
-        return;
       } catch {
-        throw notFound();
+        return;
       }
+
+      return;
     }
 
-    if (!search.orderId || !search.token) {
-      throw notFound();
+    if (!parsedSearch.orderId || !parsedSearch.token) {
+      return;
     }
 
     try {
       await queryClient.ensureQueryData(
-        checkoutOrderQueryOptions(search.orderId, search.token),
+        checkoutOrderQueryOptions(parsedSearch.orderId, parsedSearch.token),
       );
     } catch {
-      throw notFound();
+      return;
     }
   },
   component: CheckoutSuccessPage,
 });
 
 function CheckoutSuccessPage() {
-  const { orderId, token, session_id, open_app, cancelled } = Route.useSearch();
+  const { orderId, token, session_id, open_app, cancelled } =
+    normalizeCheckoutSuccessSearch(Route.useSearch());
   const isStripeSessionMode = Boolean(session_id);
-  const shouldOfferMobileHandoff = open_app === "1";
+  const shouldOfferMobileHandoff = isMobileHandoff(open_app);
   const mobileHandoffAttempted = useRef(false);
   const orderByStripeSessionQuery = useQuery({
     queryKey: ["public", "stripe-sessions", session_id, "checkout-order"],
@@ -104,6 +93,8 @@ function CheckoutSuccessPage() {
     },
   });
   const isStartingPayment = startPaymentMutation.isPending;
+  const hasCheckoutReference =
+    isStripeSessionMode || Boolean(orderId && token);
 
   useEffect(() => {
     if (!order) {
@@ -174,7 +165,19 @@ function CheckoutSuccessPage() {
     }
   }
 
-  if (activeQuery.isLoading || !order) {
+  if (!hasCheckoutReference || activeQuery.isLoading || !order) {
+    const isLookupError = activeQuery.isError;
+    const title = !hasCheckoutReference
+      ? "Checkout reference missing"
+      : isLookupError
+        ? "We could not load this payment yet"
+        : "Loading order status";
+    const description = !hasCheckoutReference
+      ? "This page needs a Stripe session id or an order token to confirm payment."
+      : isLookupError
+        ? "The payment may still be syncing, or the deployed frontend cannot reach the Eventy API. You can refresh in a moment."
+        : "Please wait while we confirm your latest payment state.";
+
     return (
       <main className="mx-auto max-w-5xl px-4 pb-12 pt-10 sm:pt-14">
         <section className="rounded-[2rem] border border-border/70 bg-card/90 p-6 shadow-sm sm:p-8">
@@ -182,11 +185,25 @@ function CheckoutSuccessPage() {
             Checkout status
           </p>
           <h1 className="mt-3 font-serif text-4xl font-semibold text-foreground">
-            Loading order status
+            {title}
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground">
-            Please wait while we confirm your latest payment state.
+            {description}
           </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            {hasCheckoutReference ? (
+              <Button
+                type="button"
+                className="rounded-full"
+                onClick={() => void activeQuery.refetch()}
+              >
+                Refresh status
+              </Button>
+            ) : null}
+            <Button asChild variant="outline" className="rounded-full bg-background">
+              <Link to="/events">Browse events</Link>
+            </Button>
+          </div>
         </section>
       </main>
     );
@@ -353,4 +370,55 @@ function CheckoutSuccessPage() {
       </section>
     </main>
   );
+}
+
+function normalizeCheckoutSuccessSearch(search: unknown) {
+  const record =
+    search && typeof search === "object"
+      ? (search as Record<string, unknown>)
+      : {};
+
+  return {
+    orderId: searchValueToString(record.orderId),
+    token: searchValueToString(record.token),
+    session_id: searchValueToString(record.session_id),
+    open_app: searchValueToString(record.open_app),
+    cancelled: searchValueToString(record.cancelled),
+  };
+}
+
+function searchValueToString(value: unknown) {
+  if (typeof value === "string") {
+    return parseStringSearchValue(value);
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  return "";
+}
+
+function parseStringSearchValue(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    if (typeof parsed === "string") {
+      return parsed;
+    }
+    if (typeof parsed === "number" || typeof parsed === "boolean") {
+      return String(parsed);
+    }
+  } catch {
+    // Normal query strings are not JSON; keep the original value.
+  }
+
+  return trimmed;
+}
+
+function isMobileHandoff(value: string) {
+  return value === "1" || value === "true" || value === "mobile";
 }
