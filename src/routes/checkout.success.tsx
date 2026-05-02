@@ -20,14 +20,22 @@ import { clearCart } from "#/lib/cart";
 import { queryClient } from "#/lib/query-client";
 
 export const Route = createFileRoute("/checkout/success")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    orderId:
-      typeof search.orderId === "string" ? search.orderId : "",
-    token: typeof search.token === "string" ? search.token : "",
-    session_id: typeof search.session_id === "string" ? search.session_id : "",
-    open_app: typeof search.open_app === "string" ? search.open_app : "",
-    cancelled: typeof search.cancelled === "string" ? search.cancelled : "",
-  }),
+  validateSearch: (search: unknown) => {
+    const record =
+      search && typeof search === "object"
+        ? (search as Record<string, unknown>)
+        : {};
+
+    return {
+      orderId: typeof record.orderId === "string" ? record.orderId : "",
+      token: typeof record.token === "string" ? record.token : "",
+      session_id:
+        typeof record.session_id === "string" ? record.session_id : "",
+      open_app: typeof record.open_app === "string" ? record.open_app : "",
+      cancelled:
+        typeof record.cancelled === "string" ? record.cancelled : "",
+    };
+  },
   loader: async ({ search }) => {
     if (search.session_id) {
       try {

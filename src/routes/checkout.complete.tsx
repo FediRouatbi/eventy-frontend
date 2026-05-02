@@ -13,32 +13,15 @@ export const Route = createFileRoute("/checkout/complete")({
       open_app: typeof record.open_app === "string" ? record.open_app : "",
     };
   },
-  beforeLoad: ({ search, location }) => {
+  beforeLoad: ({ search }) => {
     const sessionId =
-      typeof search?.session_id === "string"
-        ? search.session_id
-        : typeof (location.search as Record<string, unknown> | undefined)
-              ?.session_id === "string"
-          ? String(
-              (location.search as Record<string, unknown> | undefined)
-                ?.session_id,
-            )
-          : "";
+      typeof search.session_id === "string" ? search.session_id : "";
 
     throw redirect({
       to: "/checkout/success",
       search: {
         session_id: sessionId,
-        open_app:
-          typeof search?.open_app === "string"
-            ? search.open_app
-            : typeof (location.search as Record<string, unknown> | undefined)
-                  ?.open_app === "string"
-              ? String(
-                  (location.search as Record<string, unknown> | undefined)
-                    ?.open_app,
-                )
-              : "",
+        open_app: typeof search.open_app === "string" ? search.open_app : "",
       },
     });
   },
