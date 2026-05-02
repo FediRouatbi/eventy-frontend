@@ -10,6 +10,7 @@ export const Route = createFileRoute("/checkout/complete")({
     return {
       session_id:
         typeof record.session_id === "string" ? record.session_id : "",
+      open_app: typeof record.open_app === "string" ? record.open_app : "",
     };
   },
   beforeLoad: ({ search, location }) => {
@@ -28,6 +29,16 @@ export const Route = createFileRoute("/checkout/complete")({
       to: "/checkout/success",
       search: {
         session_id: sessionId,
+        open_app:
+          typeof search?.open_app === "string"
+            ? search.open_app
+            : typeof (location.search as Record<string, unknown> | undefined)
+                  ?.open_app === "string"
+              ? String(
+                  (location.search as Record<string, unknown> | undefined)
+                    ?.open_app,
+                )
+              : "",
       },
     });
   },

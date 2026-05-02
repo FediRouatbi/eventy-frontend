@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, notFound } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 
 import { Button } from "#/components/ui/button";
@@ -25,6 +25,8 @@ export const Route = createFileRoute("/checkout/success")({
       typeof search.orderId === "string" ? search.orderId : "",
     token: typeof search.token === "string" ? search.token : "",
     session_id: typeof search.session_id === "string" ? search.session_id : "",
+    open_app: typeof search.open_app === "string" ? search.open_app : "",
+    cancelled: typeof search.cancelled === "string" ? search.cancelled : "",
   }),
   loader: async ({ search }) => {
     if (search.session_id) {
@@ -54,8 +56,10 @@ export const Route = createFileRoute("/checkout/success")({
 });
 
 function CheckoutSuccessPage() {
-  const { orderId, token, session_id } = Route.useSearch();
+  const { orderId, token, session_id, open_app, cancelled } = Route.useSearch();
   const isStripeSessionMode = Boolean(session_id);
+  const shouldOfferMobileHandoff = open_app === "1";
+  const mobileHandoffAttempted = useRef(false);
   const orderByStripeSessionQuery = useQuery({
     queryKey: ["public", "stripe-sessions", session_id, "checkout-order"],
     enabled: isStripeSessionMode,
@@ -68,6 +72,20 @@ function CheckoutSuccessPage() {
   });
   const activeQuery = isStripeSessionMode ? orderByStripeSessionQuery : orderByTokenQuery;
   const order = activeQuery.data;
+  const mobileSuccessURL = useMemo(() => {
+    if (!order) {
+      return "";
+    }
+
+    const params = new URLSearchParams({
+      order_id: order.id,
+    });
+    if (session_id) {
+      params.set("session_id", session_id);
+    }
+
+    return `eventy-mobile://checkout/success?${params.toString()}`;
+  }, [order, session_id]);
   const startPaymentMutation = useMutation({
     mutationFn: () => {
       if (!orderId || !token) {
@@ -117,6 +135,21 @@ function CheckoutSuccessPage() {
     };
   }, [isStripeSessionMode, order, orderId, session_id, token]);
 
+  useEffect(() => {
+    if (!shouldOfferMobileHandoff || !mobileSuccessURL || order?.status !== "paid" || mobileHandoffAttempted.current) {
+      return;
+    }
+
+    mobileHandoffAttempted.current = true;
+    const handoffTimer = window.setTimeout(() => {
+      window.location.href = mobileSuccessURL;
+    }, 900);
+
+    return () => {
+      window.clearTimeout(handoffTimer);
+    };
+  }, [mobileSuccessURL, order?.status, shouldOfferMobileHandoff]);
+
   async function handlePayNow() {
     if (isStripeSessionMode) {
       return;
@@ -161,6 +194,8 @@ function CheckoutSuccessPage() {
   const kicker = isStripeSessionMode ? "Payment status" : "Checkout ready";
   const helperText = isStripeSessionMode
     ? `Reference ${order.order_number}. If status is still pending, wait a moment and refresh.`
+    : cancelled === "1"
+      ? `Payment was not completed for ${order.order_number}. You can retry from here or return to the app.`
     : `We created a pending order from your reserved tickets. The hold stays active until ${new Date(order.expires_at).toLocaleTimeString()}.`;
 
   return (
@@ -269,12 +304,19 @@ function CheckoutSuccessPage() {
           </div>
 
           <p className="mt-4 text-sm leading-7 text-muted-foreground">
-            {isRetryAllowed
+            {shouldOfferMobileHandoff && order.status === "paid"
+              ? "This checkout started in the Eventy app. If the app does not open automatically, use the button below."
+              : isRetryAllowed
               ? "Continue to Stripe Checkout to complete payment. You'll be returned here afterwards to confirm the status."
               : "Refresh this page if payment confirmation takes a few seconds to sync."}
           </p>
 
           <div className="mt-5 flex flex-wrap gap-3">
+            {shouldOfferMobileHandoff && mobileSuccessURL ? (
+              <Button asChild className="rounded-full">
+                <a href={mobileSuccessURL}>Open Eventy app</a>
+              </Button>
+            ) : null}
             {isRetryAllowed ? (
               <Button
                 type="button"
