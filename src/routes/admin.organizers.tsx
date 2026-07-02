@@ -413,8 +413,12 @@ function AdminOrganizersPage() {
         ) : (
           filteredWorkspaces.map((workspace) => (
             (() => {
-              const eventCount = workspace.organizer.event_count;
-              const sessionCount = workspace.organizer.session_count;
+              const organizer = workspace.organizer;
+              if (!organizer) {
+                return null;
+              }
+              const eventCount = organizer.event_count ?? 0;
+              const sessionCount = organizer.session_count ?? 0;
 
               return (
                 <div

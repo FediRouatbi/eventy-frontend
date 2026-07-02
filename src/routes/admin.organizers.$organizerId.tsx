@@ -398,7 +398,7 @@ function AdminOrganizerDetailPage() {
         <AdminLoadingGrid rows={3} />
       ) : loadError ? (
         <InlineError message={loadError} />
-      ) : !workspace ? (
+      ) : !workspace || !workspace.organizer ? (
         <AdminEmptyState
           title="Organizer not found"
           description="The organizer you requested could not be found."
