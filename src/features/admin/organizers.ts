@@ -66,7 +66,12 @@ export function statusBadgeVariant(
 export async function buildOrganizerWorkspaces(accessToken: string) {
   const organizers = await listAdminOrganizers(accessToken);
 
-  return sortByLabel(organizers, (organizer) => organizer.name).map(
+  const validOrganizers = (organizers ?? []).filter(
+    (organizer): organizer is OrganizerListItem =>
+      Boolean(organizer) && typeof organizer.name === "string",
+  );
+
+  return sortByLabel(validOrganizers, (organizer) => organizer.name).map(
     (organizer) => {
       return {
         organizer,
