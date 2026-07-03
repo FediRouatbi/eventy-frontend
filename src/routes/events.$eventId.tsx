@@ -483,7 +483,7 @@ function EventDetailPage() {
                               </p>
                             ) : null}
                           </div>
-                          <p className="font-semibold text-foreground">
+                          <p className="shrink-0 whitespace-nowrap font-semibold text-foreground">
                             {formatPriceLabel(ticketType.price, event.currency)}
                           </p>
                         </div>
@@ -536,7 +536,7 @@ function EventDetailPage() {
                               <Plus className="size-4" />
                             </Button>
                           </div>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="shrink-0 whitespace-nowrap text-sm text-muted-foreground">
                             {(ticketSelections[String(ticketType.id)] ?? 0) > 0
                               ? formatPriceLabel(
                                   ticketType.price *
@@ -568,7 +568,7 @@ function EventDetailPage() {
                     {selectedTicketCount} ticket{selectedTicketCount === 1 ? "" : "s"} selected
                   </p>
                 </div>
-                <p className="font-semibold text-foreground">
+                <p className="shrink-0 whitespace-nowrap font-semibold text-foreground">
                   {formatPriceLabel(selectedTicketSubtotal, event.currency)}
                 </p>
               </div>
