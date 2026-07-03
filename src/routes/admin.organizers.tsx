@@ -1,6 +1,6 @@
 import { Outlet, createFileRoute, redirect, useLocation, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import {
@@ -181,15 +181,19 @@ function AdminOrganizersPage() {
   const isUpdatingOrganizer = updateOrganizerMutation.isPending;
 
   const filteredWorkspaces = useMemo(() => {
+    // Guard against any malformed entries so searching never crashes the route.
+    const safeWorkspaces = workspaces.filter(
+      (workspace) => workspace?.organizer,
+    );
     const normalizedQuery = query.trim().toLowerCase();
     if (!normalizedQuery) {
-      return workspaces;
+      return safeWorkspaces;
     }
 
-    return workspaces.filter((workspace) =>
+    return safeWorkspaces.filter((workspace) =>
       [
-        workspace.organizer.name,
-        workspace.organizer.slug,
+        workspace.organizer?.name ?? "",
+        workspace.organizer?.slug ?? "",
         workspace.admin?.name ?? "",
         workspace.admin?.email ?? "",
       ]
@@ -198,6 +202,24 @@ function AdminOrganizersPage() {
         .includes(normalizedQuery),
     );
   }, [query, workspaces]);
+
+  // `/admin/organizers` is a layout route that stays mounted while a detail
+  // page is open, so `refetchOnMount` won't fire when returning to the list.
+  // Refetch explicitly whenever we navigate back onto the list path.
+  const previousPathRef = useRef(location.pathname);
+  useEffect(() => {
+    const previousPath = previousPathRef.current;
+    previousPathRef.current = location.pathname;
+
+    if (
+      location.pathname === "/admin/organizers" &&
+      previousPath !== "/admin/organizers" &&
+      session?.access_token &&
+      isSuperAdmin
+    ) {
+      void queryClient.invalidateQueries({ queryKey: organizersQueryKey });
+    }
+  }, [location.pathname]);
 
   function updateQuery(value: string) {
     navigate({
