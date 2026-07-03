@@ -220,12 +220,27 @@ function AdminOrganizersPage() {
       return;
     }
 
+    let result: Awaited<ReturnType<typeof createOrganizerMutation.mutateAsync>>;
     try {
-      const result = await createOrganizerMutation.mutateAsync(values);
+      result = await createOrganizerMutation.mutateAsync(values);
+    } catch (error) {
+      toast.error("Failed to create organizer", {
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+      });
+      return;
+    }
 
-      const nextWorkspaces = sortByLabel(
+    // The create succeeded. Close the drawer and reset the form first so the
+    // Sheet is no longer open by the time we navigate away — otherwise it gets
+    // unmounted mid-animation and leaves a stuck overlay/scroll-lock.
+    setIsSheetOpen(false);
+    organizerForm.reset();
+
+    setWorkspaces((currentWorkspaces) =>
+      sortByLabel(
         [
-          ...workspaces,
+          ...currentWorkspaces,
           {
             organizer: {
               ...result.organizer,
@@ -238,25 +253,23 @@ function AdminOrganizersPage() {
           },
         ],
         (workspace) => workspace.organizer.name,
-      );
+      ),
+    );
 
-      setWorkspaces(nextWorkspaces);
-      setIsSheetOpen(false);
-      organizerForm.reset();
-      await queryClient.invalidateQueries({
-        queryKey: ["admin-organizers", session.access_token],
-      });
-      toast.success("Organizer created", {
-        description: `${result.organizer.name} is ready for its first event.`,
-      });
-      navigate({
+    // Refetch in the background; a refetch failure must not turn a successful
+    // create into an error toast.
+    void queryClient.invalidateQueries({
+      queryKey: ["admin-organizers", session.access_token],
+    });
+
+    toast.success("Organizer created", {
+      description: `${result.organizer.name} is ready for its first event.`,
+    });
+
+    if (result.organizer.id) {
+      void navigate({
         to: "/admin/organizers/$organizerId",
         params: { organizerId: String(result.organizer.id) },
-      });
-    } catch (error) {
-      toast.error("Failed to create organizer", {
-        description:
-          error instanceof Error ? error.message : "Please try again.",
       });
     }
   }

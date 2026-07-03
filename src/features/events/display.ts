@@ -4,6 +4,7 @@ import type {
   ApiPublicEventWithSessions,
   ApiPublicSession,
 } from "#/lib/api/public";
+import { DEFAULT_CURRENCY_CODE } from "#/lib/currency";
 
 const categoryThemeBySlug: Record<
   string,
@@ -97,9 +98,11 @@ export function formatTimeRangeLabel(
   return `${formatTimeLabel(startsAt)} - ${formatTimeLabel(endsAt)}`;
 }
 
-export function formatPriceLabel(price: number, currency: string) {
+// All amounts are displayed in Tunisian dinar (TND) regardless of the currency
+// stored on the record, so we ignore the incoming currency code here.
+export function formatPriceLabel(price: number, _currency?: string) {
   const rounded = Number.isInteger(price) ? price.toFixed(0) : price.toFixed(2);
-  return `${rounded} ${currency}`;
+  return `${rounded} ${DEFAULT_CURRENCY_CODE}`;
 }
 
 export function getCategoryTheme(categorySlug: string) {

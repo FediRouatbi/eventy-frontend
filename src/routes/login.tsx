@@ -1,5 +1,5 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { AlertCircle, LoaderCircle, ShieldCheck } from 'lucide-react';
 import { Badge } from '#/components/ui/badge';
@@ -35,6 +35,21 @@ function LoginPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const session = useAuthSession();
+  // On a hard refresh the in-memory session starts empty, so protected routes
+  // may bounce here before the session hydrates from the refresh cookie. Once a
+  // session is available, send the user back to the right area instead of
+  // leaving them stranded on the login page.
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    void navigate({
+      to: isAdminRole(session.user.role) ? '/admin' : '/',
+      replace: true,
+    });
+  }, [session, navigate]);
+
   const [email, setEmail] = useState(search.email);
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');

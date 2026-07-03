@@ -73,10 +73,12 @@ function endOfMonth(value: Date) {
   return new Date(value.getFullYear(), value.getMonth() + 1, 0);
 }
 
-function formatCurrency(value: number, currency: string) {
+function formatCurrency(value: number, _currency?: string) {
+  // Always present finance figures in Tunisian dinar (TND).
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: currency || "EUR",
+    currency: "TND",
+    currencyDisplay: "code",
     maximumFractionDigits: 2,
   }).format(value);
 }
