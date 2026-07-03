@@ -1,6 +1,6 @@
 import { Outlet, createFileRoute, redirect, useLocation, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import {
@@ -110,7 +110,6 @@ function AdminOrganizersPage() {
   const queryClient = useQueryClient();
   const search = Route.useSearch();
   const session = useAuthSession();
-  const [workspaces, setWorkspaces] = useState<OrganizerWorkspace[]>([]);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingWorkspace, setEditingWorkspace] =
     useState<OrganizerWorkspace | null>(null);
@@ -151,6 +150,10 @@ function AdminOrganizersPage() {
   });
   const loadError =
     organizersError instanceof Error ? organizersError.message : "";
+  // Render straight from the query cache so whatever the API returns is always
+  // shown. Optimistic mutation updates are written back via setQueryData below.
+  const organizersQueryKey = ["admin-organizers", session?.access_token];
+  const workspaces = loadedWorkspaces ?? [];
   const createOrganizerMutation = useMutation({
     mutationFn: (values: OrganizerFormValues) =>
       createOrganizerAdmin(session!.access_token, {
@@ -207,14 +210,6 @@ function AdminOrganizersPage() {
     });
   }
 
-  useEffect(() => {
-    if (!loadedWorkspaces) {
-      return;
-    }
-
-    setWorkspaces(loadedWorkspaces);
-  }, [loadedWorkspaces]);
-
   async function handleCreateOrganizer(values: OrganizerFormValues) {
     if (!session) {
       return;
@@ -237,30 +232,31 @@ function AdminOrganizersPage() {
     setIsSheetOpen(false);
     organizerForm.reset();
 
-    setWorkspaces((currentWorkspaces) =>
-      sortByLabel(
-        [
-          ...currentWorkspaces,
-          {
-            organizer: {
-              ...result.organizer,
-              admin_count: 1,
-              event_count: 0,
-              session_count: 0,
+    queryClient.setQueryData<OrganizerWorkspace[]>(
+      organizersQueryKey,
+      (currentWorkspaces) =>
+        sortByLabel(
+          [
+            ...(currentWorkspaces ?? []),
+            {
+              organizer: {
+                ...result.organizer,
+                admin_count: 1,
+                event_count: 0,
+                session_count: 0,
+                admin: result.admin,
+              },
+              admin: result.admin,
+              events: [],
             },
-            admin: result.admin,
-            events: [],
-          },
-        ],
-        (workspace) => workspace.organizer.name,
-      ),
+          ],
+          (workspace) => workspace.organizer.name,
+        ),
     );
 
     // Refetch in the background; a refetch failure must not turn a successful
     // create into an error toast.
-    void queryClient.invalidateQueries({
-      queryKey: ["admin-organizers", session.access_token],
-    });
+    void queryClient.invalidateQueries({ queryKey: organizersQueryKey });
 
     toast.success("Organizer created", {
       description: `${result.organizer.name} is ready for its first event.`,
@@ -301,29 +297,29 @@ function AdminOrganizersPage() {
         values,
       });
 
-      setWorkspaces((currentWorkspaces) =>
-        sortByLabel(
-          currentWorkspaces.map((workspace) =>
-            workspace.organizer.id === editingWorkspace.organizer.id
-              ? {
-                  ...workspace,
-                  organizer: {
-                    ...workspace.organizer,
-                    ...updatedOrganizer,
-                  },
-                }
-              : workspace,
+      queryClient.setQueryData<OrganizerWorkspace[]>(
+        organizersQueryKey,
+        (currentWorkspaces) =>
+          sortByLabel(
+            (currentWorkspaces ?? []).map((workspace) =>
+              workspace.organizer.id === editingWorkspace.organizer.id
+                ? {
+                    ...workspace,
+                    organizer: {
+                      ...workspace.organizer,
+                      ...updatedOrganizer,
+                    },
+                  }
+                : workspace,
+            ),
+            (workspace) => workspace.organizer.name,
           ),
-          (workspace) => workspace.organizer.name,
-        ),
       );
 
       toast.success("Organizer updated", {
         description: `${updatedOrganizer.name} has been updated.`,
       });
-      await queryClient.invalidateQueries({
-        queryKey: ["admin-organizers", session.access_token],
-      });
+      await queryClient.invalidateQueries({ queryKey: organizersQueryKey });
       closeEditSheet();
     } catch (error) {
       toast.error("Failed to update organizer", {
@@ -343,10 +339,12 @@ function AdminOrganizersPage() {
 
     try {
       await deleteOrganizerMutation.mutateAsync(pendingId);
-      setWorkspaces((currentWorkspaces) =>
-        currentWorkspaces.filter(
-          (workspace) => String(workspace.organizer.id) !== pendingId,
-        ),
+      queryClient.setQueryData<OrganizerWorkspace[]>(
+        organizersQueryKey,
+        (currentWorkspaces) =>
+          (currentWorkspaces ?? []).filter(
+            (workspace) => String(workspace.organizer.id) !== pendingId,
+          ),
       );
       toast.success("Organizer deleted", {
         description: `${workspacePendingDelete.organizer.name} and all related events were removed.`,
